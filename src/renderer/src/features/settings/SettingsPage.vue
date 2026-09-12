@@ -76,6 +76,24 @@ async function openBackupFolder(): Promise<void> {
 async function openLogsFolder(): Promise<void> {
   await window.desktop.system.openLogsFolder()
 }
+
+async function resetAllData(): Promise<void> {
+  if (
+    !window.confirm(
+      'Delete ALL projects, tasks, time entries and tags? A safety backup will be created first, then the app will restart. This cannot be undone from the UI.'
+    )
+  ) {
+    return
+  }
+  await window.desktop.backup.resetAllData()
+}
+
+async function sendTestNotification(): Promise<void> {
+  const supported = await window.desktop.notifications.sendTest()
+  uiStore.pushToast({
+    message: supported ? 'Test notification sent' : 'Notifications are not supported on this system'
+  })
+}
 </script>
 
 <template>
@@ -128,6 +146,7 @@ async function openLogsFolder(): Promise<void> {
             @change="set({ notificationsEnabled: ($event.target as HTMLInputElement).checked })"
           />
         </div>
+        <button class="btn btn-sm" @click="sendTestNotification">Send test notification</button>
       </section>
 
       <section v-else-if="tab === 'appearance'" class="space-y-4">
@@ -363,6 +382,18 @@ async function openLogsFolder(): Promise<void> {
               <button class="link" @click="restoreBackup(b.filePath)">Restore</button>
             </div>
           </div>
+        </div>
+
+        <div class="divider" />
+        <div class="rounded-lg border border-error/40 bg-error/5 p-4 space-y-2">
+          <h3 class="text-sm font-semibold text-error">Danger zone</h3>
+          <p class="text-xs text-base-content/60">
+            Permanently deletes every project, task, time entry and tag to start from a clean
+            slate. A safety backup is taken first and the app restarts. Your settings are kept.
+          </p>
+          <button class="btn btn-error btn-sm btn-outline" @click="resetAllData">
+            Reset all data
+          </button>
         </div>
       </section>
 

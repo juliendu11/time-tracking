@@ -102,13 +102,17 @@ const desktopApi: DesktopApi = {
     openFolder: () => invoke(IPC_CHANNELS.backupOpenFolder),
     restore: (filePath) => invoke(IPC_CHANNELS.backupRestore, filePath),
     pickBackupFile: () => invoke(IPC_CHANNELS.backupPickFile),
-    buildExportBundle: () => invoke(IPC_CHANNELS.backupBuildExportBundle)
+    buildExportBundle: () => invoke(IPC_CHANNELS.backupBuildExportBundle),
+    resetAllData: () => invoke(IPC_CHANNELS.backupResetAllData)
   },
   system: {
     getVersion: () => invoke(IPC_CHANNELS.systemGetVersion),
     getPlatform: () => invoke(IPC_CHANNELS.systemGetPlatform),
     openLogsFolder: () => invoke(IPC_CHANNELS.systemOpenLogsFolder),
     quit: () => invoke(IPC_CHANNELS.systemQuit)
+  },
+  notifications: {
+    sendTest: () => invoke(IPC_CHANNELS.notificationsSendTest)
   }
 }
 

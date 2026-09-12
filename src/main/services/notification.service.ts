@@ -30,6 +30,13 @@ export class NotificationService {
     new Notification({ title, body, silent: true }).show()
   }
 
+  /** Sends a one-off notification on demand, bypassing notificationsEnabled. */
+  sendTest(): boolean {
+    if (!Notification.isSupported()) return false
+    this.notify('Test notification', 'Notifications are working correctly.')
+    return true
+  }
+
   private poll(): void {
     const settings = this.context.settings.get()
     if (!settings.notificationsEnabled) return

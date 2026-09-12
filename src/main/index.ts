@@ -51,7 +51,9 @@ function bootstrap(): void {
       app.quit()
     })
 
-    registerIpcHandlers(context)
+    const notifications = new NotificationService(context)
+
+    registerIpcHandlers(context, notifications)
 
     if (process.env.SEED === '1' && !app.isPackaged) {
       new SeedService(context.projects, context.tasks, context.timeEntries, context.tags).run()
@@ -72,7 +74,6 @@ function bootstrap(): void {
       toggleMiniTimerWindow(true, context.settings.get().miniTimerAlwaysOnTop)
     }
 
-    const notifications = new NotificationService(context)
     notifications.start()
 
     maybeRunAutoBackup(context)

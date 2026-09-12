@@ -174,6 +174,26 @@ export class BackupService {
     logger.info('Backup restored', { filePath, safetyBackupPath: safety.filePath })
     return { safetyBackupPath: safety.filePath }
   }
+
+  /**
+   * Wipes all tracked data (projects, tasks, time entries, tags) to let the
+   * user start over, after taking a safety backup. Deleting projects and
+   * tags cascades (FK `ON DELETE CASCADE`) to tasks, time entries, their tag
+   * links, and the active timer if it pointed at a deleted project; app
+   * settings/preferences are left untouched. Like `restoreBackup`, the
+   * caller is responsible for restarting the app afterwards.
+   */
+  resetAllData(): { safetyBackupPath: string } {
+    const safety = this.createBackupNow()
+    for (const tag of this.tags.list()) {
+      this.tags.delete(tag.id)
+    }
+    for (const project of this.projects.list({ includeArchived: true })) {
+      this.projects.delete(project.id)
+    }
+    logger.info('All data reset', { safetyBackupPath: safety.filePath })
+    return { safetyBackupPath: safety.filePath }
+  }
 }
 
 function timestampSlug(): string {

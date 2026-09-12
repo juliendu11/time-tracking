@@ -36,6 +36,7 @@ import type { AppContext } from '@main/context'
 import { applyAccelerator } from '@main/shortcuts/globalShortcuts'
 import { toggleMiniTimerWindow } from '@main/windows/miniTimerWindow'
 import { applyLaunchAtStartup } from '@main/autostart'
+import type { NotificationService } from '@main/services/notification.service'
 
 function handle<Args extends unknown[], Result>(
   channel: string,
@@ -54,7 +55,7 @@ function handle<Args extends unknown[], Result>(
   })
 }
 
-export function registerIpcHandlers(context: AppContext): void {
+export function registerIpcHandlers(context: AppContext, notifications: NotificationService): void {
   const { projects, tasks, timeEntries, tags, settings, timer, reports, suggestions, search, backup } =
     context
 
@@ -219,6 +220,10 @@ export function registerIpcHandlers(context: AppContext): void {
     backup.restoreBackup(filePath)
     context.requestRestart()
   })
+  handle(IPC_CHANNELS.backupResetAllData, () => {
+    backup.resetAllData()
+    context.requestRestart()
+  })
 
   // --- System ---------------------------------------------------------------------
   handle(IPC_CHANNELS.systemGetVersion, () => app.getVersion())
@@ -227,6 +232,9 @@ export function registerIpcHandlers(context: AppContext): void {
   handle(IPC_CHANNELS.systemQuit, () => {
     app.quit()
   })
+
+  // --- Notifications ----------------------------------------------------------------
+  handle(IPC_CHANNELS.notificationsSendTest, () => notifications.sendTest())
 }
 
 function broadcast(channel: string, payload: unknown): void {

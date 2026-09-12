@@ -122,12 +122,16 @@ export interface DesktopApi {
     restore(filePath: string): Promise<void>
     pickBackupFile(): Promise<string | null>
     buildExportBundle(): Promise<ExportBundle>
+    resetAllData(): Promise<void>
   }
   system: {
     getVersion(): Promise<string>
     getPlatform(): Promise<NodeJS.Platform>
     openLogsFolder(): Promise<void>
     quit(): Promise<void>
+  }
+  notifications: {
+    sendTest(): Promise<boolean>
   }
 }
 
@@ -199,11 +203,14 @@ export const IPC_CHANNELS = {
   backupRestore: 'backup:restore',
   backupPickFile: 'backup:pickFile',
   backupBuildExportBundle: 'backup:buildExportBundle',
+  backupResetAllData: 'backup:resetAllData',
 
   systemGetVersion: 'system:getVersion',
   systemGetPlatform: 'system:getPlatform',
   systemOpenLogsFolder: 'system:openLogsFolder',
   systemQuit: 'system:quit',
+
+  notificationsSendTest: 'notifications:sendTest',
 
   commandStartTimerRequest: 'command:startTimerRequest',
   commandOpenPaletteRequest: 'command:openPaletteRequest'
