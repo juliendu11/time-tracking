@@ -1,0 +1,115 @@
+@import 'tailwindcss';
+@plugin 'daisyui' {
+  themes: false;
+}
+
+@theme {
+  --font-sans:
+    'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+/*
+  Custom "tt" identity: a desktop-app palette inspired by Linear/Raycast,
+  not a generic DaisyUI theme. Defined for both color-schemes explicitly
+  so DaisyUI component classes (btn, card, menu, etc.) inherit it.
+*/
+[data-theme='tt-light'] {
+  color-scheme: light;
+  --color-base-100: oklch(99% 0.002 260);
+  --color-base-200: oklch(97% 0.004 260);
+  --color-base-300: oklch(93% 0.006 260);
+  --color-base-content: oklch(22% 0.02 260);
+
+  --color-primary: oklch(58% 0.19 291);
+  --color-primary-content: oklch(98% 0.01 291);
+  --color-secondary: oklch(70% 0.14 200);
+  --color-secondary-content: oklch(15% 0.02 200);
+  --color-accent: oklch(75% 0.16 55);
+  --color-accent-content: oklch(15% 0.02 55);
+  --color-neutral: oklch(30% 0.01 260);
+  --color-neutral-content: oklch(95% 0.005 260);
+
+  --color-info: oklch(70% 0.12 220);
+  --color-info-content: oklch(15% 0.02 220);
+  --color-success: oklch(70% 0.15 155);
+  --color-success-content: oklch(15% 0.02 155);
+  --color-warning: oklch(80% 0.15 85);
+  --color-warning-content: oklch(20% 0.02 85);
+  --color-error: oklch(63% 0.21 25);
+  --color-error-content: oklch(97% 0.01 25);
+
+  --radius-selector: 0.5rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.75rem;
+  --border: 1px;
+}
+
+[data-theme='tt-dark'] {
+  color-scheme: dark;
+  --color-base-100: oklch(19% 0.012 265);
+  --color-base-200: oklch(16% 0.012 265);
+  --color-base-300: oklch(13% 0.012 265);
+  --color-base-content: oklch(92% 0.006 265);
+
+  --color-primary: oklch(72% 0.16 291);
+  --color-primary-content: oklch(15% 0.02 291);
+  --color-secondary: oklch(72% 0.11 200);
+  --color-secondary-content: oklch(15% 0.02 200);
+  --color-accent: oklch(78% 0.14 55);
+  --color-accent-content: oklch(15% 0.02 55);
+  --color-neutral: oklch(85% 0.005 265);
+  --color-neutral-content: oklch(15% 0.02 265);
+
+  --color-info: oklch(72% 0.1 220);
+  --color-info-content: oklch(15% 0.02 220);
+  --color-success: oklch(72% 0.13 155);
+  --color-success-content: oklch(15% 0.02 155);
+  --color-warning: oklch(80% 0.14 85);
+  --color-warning-content: oklch(20% 0.02 85);
+  --color-error: oklch(68% 0.19 25);
+  --color-error-content: oklch(97% 0.01 25);
+
+  --radius-selector: 0.5rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.75rem;
+  --border: 1px;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  @apply bg-base-100 text-base-content antialiased;
+  font-feature-settings:
+    'cv02',
+    'cv03',
+    'cv04',
+    'cv11';
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-base-300 rounded-full;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tt-pulse {
+  animation: tt-pulse 2.4s ease-in-out infinite;
+}
+@keyframes tt-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}

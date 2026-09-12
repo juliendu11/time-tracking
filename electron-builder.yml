@@ -1,0 +1,58 @@
+appId: com.timetracker.app
+productName: TimeTracker
+copyright: Copyright © 2026
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - out/**/*
+  - package.json
+  - node_modules/**/*
+
+extraResources:
+  - from: resources
+    to: resources
+
+asarUnpack:
+  - '**/*.node'
+
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Utility
+  maintainer: TimeTracker
+
+deb:
+  depends:
+    - libgtk-3-0
+    - libnotify4
+    - libnss3
+    - libxss1
+    - libxtst6
+
+win:
+  target:
+    - nsis
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+
+mac:
+  target:
+    - dmg
+  category: public.app-category.productivity
+  hardenedRuntime: true
+
+dmg:
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
