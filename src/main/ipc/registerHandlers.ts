@@ -153,7 +153,7 @@ export function registerIpcHandlers(context: AppContext, notifications: Notifica
   handle(IPC_CHANNELS.settingsUpdate, (update: AppSettingsUpdate) => {
     const next = settings.update(appSettingsUpdateSchema.parse(update))
     if (update.globalShortcutToggleTimer) applyAccelerator(context, next.globalShortcutToggleTimer)
-    if (update.showMiniTimer !== undefined) {
+    if (update.showMiniTimer !== undefined || update.miniTimerAlwaysOnTop !== undefined) {
       toggleMiniTimerWindow(next.showMiniTimer, next.miniTimerAlwaysOnTop)
     }
     if (update.launchAtStartup !== undefined) applyLaunchAtStartup(next.launchAtStartup)
