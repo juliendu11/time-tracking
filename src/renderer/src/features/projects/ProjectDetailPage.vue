@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
-import { Play, Plus } from '@lucide/vue'
-import type { Project, ProjectStats, Task, TaskPriority } from '@shared/types/domain'
-import { formatDurationSpaced } from '@shared/utils/duration'
-import { useProjectsStore } from '../../stores/projects'
-import { useTasksStore } from '../../stores/tasks'
-import { useTimerStore } from '../../stores/timer'
+import {computed, onMounted, ref, watch} from 'vue'
+import {Play, Plus} from '@lucide/vue'
+import type {Project, ProjectStats, Task, TaskPriority} from '@shared/types/domain'
+import {formatDurationSpaced} from '@shared/utils/duration'
+import {useProjectsStore} from '../../stores/projects'
+import {useTasksStore} from '../../stores/tasks'
+import {useTimerStore} from '../../stores/timer'
 import TaskRow from '../tasks/TaskRow.vue'
 import TaskFormModal from '../tasks/TaskFormModal.vue'
 
@@ -35,7 +35,7 @@ watch(() => props.id, load)
 
 const tasks = computed(() => tasksStore.tasksFor(props.id))
 
-const PRIORITY_WEIGHT: Record<TaskPriority, number> = { urgent: 0, high: 1, normal: 2, low: 3 }
+const PRIORITY_WEIGHT: Record<TaskPriority, number> = {urgent: 0, high: 1, normal: 2, low: 3}
 
 const filteredTasks = computed(() => {
   let list = tasks.value.filter((t) => t.status !== 'archived')
@@ -54,15 +54,16 @@ const taskDurations = ref<Record<string, number>>({})
 
 async function refreshDurations(): Promise<void> {
   const entries = await Promise.all(
-    tasks.value.map(async (t) => {
-      const list = await window.desktop.timeEntries.listByTask(t.id)
-      const total = list.reduce((sum, e) => sum + e.durationSeconds, 0)
-      return [t.id, total] as const
-    })
+      tasks.value.map(async (t) => {
+        const list = await window.desktop.timeEntries.listByTask(t.id)
+        const total = list.reduce((sum, e) => sum + e.durationSeconds, 0)
+        return [t.id, total] as const
+      })
   )
   taskDurations.value = Object.fromEntries(entries)
 }
-watch(tasks, refreshDurations, { immediate: true })
+
+watch(tasks, refreshDurations, {immediate: true})
 
 async function refreshStats(): Promise<void> {
   stats.value = await window.desktop.projects.getStats(props.id)
@@ -87,12 +88,12 @@ const liveTaskDurations = computed(() => {
 // created/finalised in the DB — refresh the durations and stats that
 // depend on it so this page never needs a manual revisit to catch up.
 watch(
-  () => timerStore.snapshot?.timer.id ?? null,
-  (newId, oldId) => {
-    if (newId === oldId) return
-    void refreshDurations()
-    void refreshStats()
-  }
+    () => timerStore.snapshot?.timer.id ?? null,
+    (newId, oldId) => {
+      if (newId === oldId) return
+      void refreshDurations()
+      void refreshStats()
+    }
 )
 
 async function startTask(task: Task): Promise<void> {
@@ -104,11 +105,11 @@ async function startFreeTimer(): Promise<void> {
 }
 
 async function toggleComplete(task: Task): Promise<void> {
-  await tasksStore.update(task.id, props.id, { status: task.status === 'done' ? 'todo' : 'done' })
+  await tasksStore.update(task.id, props.id, {status: task.status === 'done' ? 'todo' : 'done'})
 }
 
 async function toggleFavorite(task: Task): Promise<void> {
-  await tasksStore.update(task.id, props.id, { isFavorite: !task.isFavorite })
+  await tasksStore.update(task.id, props.id, {isFavorite: !task.isFavorite})
 }
 
 async function archiveTask(task: Task): Promise<void> {
@@ -134,7 +135,8 @@ const weekProgress = computed(() => {
         <h1 class="text-xl font-semibold">{{ project.name }}</h1>
       </div>
       <button class="btn btn-primary btn-sm gap-1.5" @click="startFreeTimer">
-        <Play :size="14" /> Start timer
+        <Play :size="14" />
+        Start timer
       </button>
     </div>
 
@@ -176,13 +178,14 @@ const weekProgress = computed(() => {
             <option value="in_progress">In progress</option>
             <option value="done">Done</option>
           </select>
-          <select v-model="sortBy" class="select select-bordered select-xs">
+          <select v-model="sortBy" class="select select-bordered select-xs w-40">
             <option value="created">Newest</option>
             <option value="priority">Priority</option>
             <option value="name">Name</option>
           </select>
           <button class="btn btn-ghost btn-xs gap-1" @click="showTaskForm = true">
-            <Plus :size="13" /> Task
+            <Plus :size="13" />
+            Task
           </button>
         </div>
       </div>
