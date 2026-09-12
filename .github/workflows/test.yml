@@ -1,13 +1,14 @@
 name: Tests
 
-# Fast, single-OS feedback (typecheck + lint + test) on every push/PR to the
-# two long-lived branches, without waiting on the full multi-platform
-# packaging done by build-linux.yml/build-macos.yml/build-windows.yml.
+# Fast, single-OS feedback (typecheck + lint + test) on every push/PR to
+# develop, the day-to-day integration branch. master only gets the full
+# multi-platform build (build-linux.yml/build-macos.yml/build-windows.yml),
+# which already runs the same checks before packaging.
 on:
   push:
-    branches: [master, develop]
+    branches: [develop]
   pull_request:
-    branches: [master, develop]
+    branches: [develop]
   workflow_dispatch:
 
 jobs:
