@@ -1,0 +1,61 @@
+name: Build (macOS)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Test
+        run: pnpm run test
+
+      # This is the one platform that genuinely cannot be built anywhere
+      # but a real Mac (see docs/build-and-release.md §2.3) — a hosted
+      # macos-latest runner is exactly how that requirement gets satisfied
+      # in CI. `build/icon.icns` is auto-generated from build/icon.png
+      # here, which only works reliably on macOS.
+      #
+      # No Developer ID certificate is configured yet, so this produces an
+      # UNSIGNED, UNNOTARIZED .dmg — Gatekeeper will block it for anyone
+      # but the developer testing locally (docs/build-and-release.md §3.2).
+      # CSC_IDENTITY_AUTO_DISCOVERY=false stops electron-builder from
+      # searching the runner's empty keychain for a signing identity.
+      #
+      # No --publish here — see build-linux.yml for why.
+      - name: Build & package
+        run: pnpm run package:mac
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-build
+          path: release/*.dmg
+          if-no-files-found: error
+          retention-days: 14

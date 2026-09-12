@@ -1,0 +1,110 @@
+name: Release
+
+# Publishes built installers to a GitHub Release — separate from the three
+# build-*.yml workflows, which only verify the app builds and never publish
+# anything (docs/build-and-release.md §4.4). Push a tag matching the
+# package.json version (e.g. version "0.2.0" → tag "v0.2.0") to trigger it,
+# or run it manually for a one-off release of the current commit.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Test
+        run: pnpm run test
+
+  release:
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platformFlag: --linux
+            artifactName: linux-installers
+            artifactGlob: |
+              release/*.AppImage
+              release/*.deb
+          - os: windows-latest
+            platformFlag: --win
+            artifactName: windows-installer
+            artifactGlob: release/*.exe
+          - os: macos-latest
+            platformFlag: --mac
+            artifactName: macos-installer
+            artifactGlob: release/*.dmg
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm run build
+
+      # No signing credentials are configured yet (docs/build-and-release.md
+      # §3), so this produces UNSIGNED installers: Windows SmartScreen and
+      # macOS Gatekeeper will both warn end users until certificates +
+      # (for macOS) notarization are wired in via CSC_LINK/CSC_KEY_PASSWORD
+      # and APPLE_* secrets. CSC_IDENTITY_AUTO_DISCOVERY=false stops
+      # electron-builder from searching for a (nonexistent) signing
+      # identity in the runner's keychain on macOS.
+      #
+      # --publish always uploads the artifacts straight to the GitHub
+      # Release matching this tag (creating it if needed) using the
+      # built-in GITHUB_TOKEN — no extra secret needed for this part.
+      - name: Package & publish to GitHub Release
+        run: pnpm exec electron-builder ${{ matrix.platformFlag }} --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      # Belt-and-suspenders copy in the Actions run itself, in case the
+      # GitHub Release publish step above fails partway through.
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifactName }}
+          path: ${{ matrix.artifactGlob }}
+          if-no-files-found: error
+          retention-days: 14

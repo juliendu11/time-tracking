@@ -1,0 +1,53 @@
+name: Build (Windows)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Test
+        run: pnpm run test
+
+      # Native build on a real Windows runner — no Wine involved, unlike
+      # cross-building from Linux/macOS (see docs/build-and-release.md
+      # §2.2). Produces an unsigned NSIS installer: no code signing
+      # certificate is configured yet, so Windows SmartScreen will warn
+      # on first run until that's set up (docs/build-and-release.md §3.1).
+      #
+      # No --publish here — see build-linux.yml for why.
+      - name: Build & package
+        run: pnpm run package:win
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: release/*.exe
+          if-no-files-found: error
+          retention-days: 14

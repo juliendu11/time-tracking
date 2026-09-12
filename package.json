@@ -4,8 +4,13 @@
   "description": "Local-first desktop time tracking application",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@11.25.0",
   "author": "TimeTracker",
   "homepage": "https://github.com/local/time-tracking",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CHANGE_ME/time-tracking.git"
+  },
   "license": "UNLICENSED",
   "main": "./out/main/index.js",
   "scripts": {

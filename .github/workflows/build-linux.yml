@@ -1,0 +1,58 @@
+name: Build (Linux)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Test
+        run: pnpm run test
+
+      # Builds AppImage + deb (electron-builder.yml → linux.target). Both
+      # work unmodified on GitHub's ubuntu-latest runner: unlike some
+      # recent Fedora releases, Ubuntu still ships libcrypt.so.1, which is
+      # what the bundled `fpm` tool needs to produce the .deb. See
+      # docs/build-and-release.md §2.1 if this ever needs debugging.
+      #
+      # No --publish here: this workflow only verifies the app builds and
+      # packages correctly. Publishing to a release feed is a separate,
+      # deliberate step (docs/build-and-release.md §4.4/§5) that needs
+      # signing set up first.
+      - name: Build & package
+        run: pnpm run package:linux
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: |
+            release/*.AppImage
+            release/*.deb
+          if-no-files-found: error
+          retention-days: 14
