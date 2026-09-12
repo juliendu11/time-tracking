@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import type { AppSettingsUpdate, BackupFileInfo } from '@shared/types/domain'
-import { useProjectsStore } from '../../stores/projects'
-import { useSettingsStore } from '../../stores/settings'
-import { useUiStore } from '../../stores/ui'
+import {onMounted, ref} from 'vue'
+import type {AppSettingsUpdate, BackupFileInfo} from '@shared/types/domain'
+import {useProjectsStore} from '../../stores/projects'
+import {useSettingsStore} from '../../stores/settings'
+import {useUiStore} from '../../stores/ui'
+import BaseCheckBox from "@renderer/components/BaseCheckBox.vue";
 
 const settingsStore = useSettingsStore()
 const projectsStore = useProjectsStore()
@@ -13,15 +14,15 @@ type Tab = 'general' | 'appearance' | 'timer' | 'idle' | 'goals' | 'shortcuts' |
 const tab = ref<Tab>('general')
 
 const tabs: { id: Tab; label: string }[] = [
-  { id: 'general', label: 'General' },
-  { id: 'appearance', label: 'Appearance' },
-  { id: 'timer', label: 'Timer' },
-  { id: 'idle', label: 'Idle detection' },
-  { id: 'goals', label: 'Goals' },
-  { id: 'shortcuts', label: 'Shortcuts' },
-  { id: 'backup', label: 'Backup & Data' },
-  { id: 'advanced', label: 'Advanced' },
-  { id: 'about', label: 'About' }
+  {id: 'general', label: 'General'},
+  {id: 'appearance', label: 'Appearance'},
+  {id: 'timer', label: 'Timer'},
+  {id: 'idle', label: 'Idle detection'},
+  {id: 'goals', label: 'Goals'},
+  {id: 'shortcuts', label: 'Shortcuts'},
+  {id: 'backup', label: 'Backup & Data'},
+  {id: 'advanced', label: 'Advanced'},
+  {id: 'about', label: 'About'}
 ]
 
 const backups = ref<BackupFileInfo[]>([])
@@ -43,7 +44,7 @@ async function set(patch: AppSettingsUpdate): Promise<void> {
 async function createBackup(): Promise<void> {
   await window.desktop.backup.createNow()
   backups.value = await window.desktop.backup.list()
-  uiStore.pushToast({ message: 'Backup created' })
+  uiStore.pushToast({message: 'Backup created'})
 }
 
 async function restoreBackup(filePath: string): Promise<void> {
@@ -60,11 +61,12 @@ async function pickAndRestore(): Promise<void> {
 
 async function exportJson(): Promise<void> {
   const path = await window.desktop.backup.exportJson()
-  uiStore.pushToast({ message: `Exported to ${path}` })
+  uiStore.pushToast({message: `Exported to ${path}`})
 }
+
 async function exportCsv(): Promise<void> {
   const path = await window.desktop.backup.exportCsv()
-  uiStore.pushToast({ message: `Exported to ${path}` })
+  uiStore.pushToast({message: `Exported to ${path}`})
 }
 
 async function openBackupFolder(): Promise<void> {
@@ -96,7 +98,7 @@ async function openLogsFolder(): Promise<void> {
         <div class="form-control">
           <label class="label"><span class="label-text">Default project</span></label>
           <select
-            class="select select-bordered select-sm w-64"
+            class="select select-bordered select-sm w-64 "
             :value="settingsStore.settings.defaultProjectId ?? ''"
             @change="set({ defaultProjectId: ($event.target as HTMLSelectElement).value || null })"
           >
@@ -104,42 +106,28 @@ async function openLogsFolder(): Promise<void> {
             <option v-for="p in projectsStore.activeProjects" :key="p.id" :value="p.id">{{ p.name }}</option>
           </select>
         </div>
-        <label class="label w-fit cursor-pointer gap-3">
-          <input
-            type="checkbox"
-            class="toggle toggle-sm"
+        <div class="grid grid-cols-2 gap-5">
+          <BaseCheckBox
+            label="Minimize to tray instead of quitting"
             :checked="settingsStore.settings.minimizeToTray"
             @change="set({ minimizeToTray: ($event.target as HTMLInputElement).checked })"
           />
-          <span class="label-text">Minimize to tray instead of quitting</span>
-        </label>
-        <label class="label w-fit cursor-pointer gap-3">
-          <input
-            type="checkbox"
-            class="toggle toggle-sm"
+          <BaseCheckBox
+            label="Launch at startup"
             :checked="settingsStore.settings.launchAtStartup"
             @change="set({ launchAtStartup: ($event.target as HTMLInputElement).checked })"
           />
-          <span class="label-text">Launch at startup</span>
-        </label>
-        <label class="label w-fit cursor-pointer gap-3">
-          <input
-            type="checkbox"
-            class="toggle toggle-sm"
+          <BaseCheckBox
+            label="Confirm before deleting a time entry"
             :checked="settingsStore.settings.confirmBeforeDeletingEntry"
             @change="set({ confirmBeforeDeletingEntry: ($event.target as HTMLInputElement).checked })"
           />
-          <span class="label-text">Confirm before deleting a time entry</span>
-        </label>
-        <label class="label w-fit cursor-pointer gap-3">
-          <input
-            type="checkbox"
-            class="toggle toggle-sm"
+          <BaseCheckBox
+            label="Desktop notifications"
             :checked="settingsStore.settings.notificationsEnabled"
             @change="set({ notificationsEnabled: ($event.target as HTMLInputElement).checked })"
           />
-          <span class="label-text">Desktop notifications</span>
-        </label>
+        </div>
       </section>
 
       <section v-else-if="tab === 'appearance'" class="space-y-4">
@@ -185,7 +173,9 @@ async function openLogsFolder(): Promise<void> {
       <section v-else-if="tab === 'timer'" class="space-y-4">
         <h2 class="text-base font-semibold">Timer</h2>
         <div class="form-control">
-          <label class="label"><span class="label-text">When starting a timer while one is already running</span></label>
+          <label class="label"><span
+            class="label-text"
+          >When starting a timer while one is already running</span></label>
           <select
             class="select select-bordered select-sm w-72"
             :value="settingsStore.settings.quickSwitchBehavior"
@@ -195,35 +185,27 @@ async function openLogsFolder(): Promise<void> {
             <option value="ask_to_stop">Ask for confirmation first</option>
           </select>
         </div>
-        <label class="label w-fit cursor-pointer gap-3">
-          <input
-            type="checkbox"
-            class="toggle toggle-sm"
+        <div class="grid grid-cols-2 gap-5">
+          <BaseCheckBox
+            label="Show mini timer window"
             :checked="settingsStore.settings.showMiniTimer"
             @change="set({ showMiniTimer: ($event.target as HTMLInputElement).checked })"
           />
-          <span class="label-text">Show mini timer window</span>
-        </label>
-        <label class="label w-fit cursor-pointer gap-3">
-          <input
-            type="checkbox"
-            class="toggle toggle-sm"
+          <BaseCheckBox
+            label="Mini timer always on top"
             :checked="settingsStore.settings.miniTimerAlwaysOnTop"
             @change="set({ miniTimerAlwaysOnTop: ($event.target as HTMLInputElement).checked })"
           />
-          <span class="label-text">Mini timer always on top</span>
-        </label>
+        </div>
 
         <div class="divider" />
-        <label class="label w-fit cursor-pointer gap-3">
-          <input
-            type="checkbox"
-            class="toggle toggle-sm"
+        <div class="grid grid-cols-2 gap-5">
+          <BaseCheckBox
+            label="Enable Pomodoro"
             :checked="settingsStore.settings.pomodoroEnabled"
             @change="set({ pomodoroEnabled: ($event.target as HTMLInputElement).checked })"
           />
-          <span class="label-text">Enable Pomodoro</span>
-        </label>
+        </div>
         <div v-if="settingsStore.settings.pomodoroEnabled" class="grid grid-cols-3 gap-3">
           <div class="form-control">
             <label class="label"><span class="label-text text-xs">Focus (min)</span></label>
@@ -257,15 +239,11 @@ async function openLogsFolder(): Promise<void> {
 
       <section v-else-if="tab === 'idle'" class="space-y-4">
         <h2 class="text-base font-semibold">Idle detection</h2>
-        <label class="label w-fit cursor-pointer gap-3">
-          <input
-            type="checkbox"
-            class="toggle toggle-sm"
-            :checked="settingsStore.settings.idleDetectionEnabled"
-            @change="set({ idleDetectionEnabled: ($event.target as HTMLInputElement).checked })"
-          />
-          <span class="label-text">Detect when I'm away from the keyboard</span>
-        </label>
+        <BaseCheckBox
+          label="Detect when I'm away from the keyboard"
+          :checked="settingsStore.settings.idleDetectionEnabled"
+          @change="set({ idleDetectionEnabled: ($event.target as HTMLInputElement).checked })"
+        />
         <div class="form-control">
           <label class="label"><span class="label-text">Idle threshold (minutes)</span></label>
           <input
@@ -337,15 +315,11 @@ async function openLogsFolder(): Promise<void> {
 
       <section v-else-if="tab === 'backup'" class="space-y-4">
         <h2 class="text-base font-semibold">Backup & Data</h2>
-        <label class="label w-fit cursor-pointer gap-3">
-          <input
-            type="checkbox"
-            class="toggle toggle-sm"
-            :checked="settingsStore.settings.autoBackupEnabled"
-            @change="set({ autoBackupEnabled: ($event.target as HTMLInputElement).checked })"
-          />
-          <span class="label-text">Automatic backups</span>
-        </label>
+        <BaseCheckBox
+          label="Automatic backups"
+          :checked="settingsStore.settings.autoBackupEnabled"
+          @change="set({ autoBackupEnabled: ($event.target as HTMLInputElement).checked })"
+        />
         <div class="grid grid-cols-2 gap-4">
           <div class="form-control">
             <label class="label"><span class="label-text">Frequency</span></label>
@@ -401,7 +375,10 @@ async function openLogsFolder(): Promise<void> {
         <h2 class="text-base font-semibold">About</h2>
         <p class="text-sm text-base-content/70">TimeTracker v{{ appVersion }}</p>
         <p class="text-sm text-base-content/70">Platform: {{ platform }}</p>
-        <p class="text-xs text-base-content/40">A local-first, offline time tracking desktop app. No account, no cloud.</p>
+        <p class="text-xs text-base-content/40">
+          A local-first, offline time tracking desktop app. No account, no
+          cloud.
+        </p>
       </section>
     </div>
   </div>

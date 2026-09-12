@@ -4,6 +4,7 @@ import type { ReportGroupBy, ReportResult } from '@shared/types/domain'
 import { formatDurationSpaced } from '@shared/utils/duration'
 import { useProjectsStore } from '../../stores/projects'
 import { useTagsStore } from '../../stores/tags'
+import BaseCheckBox from '@renderer/components/BaseCheckBox.vue'
 
 const projectsStore = useProjectsStore()
 const tagsStore = useTagsStore()
@@ -129,15 +130,17 @@ const changePercent = computed(() => {
         <option v-for="t in tagsStore.tags" :key="t.id" :value="t.id">{{ t.name }}</option>
       </select>
 
-      <label class="label cursor-pointer gap-1.5 text-xs">
-        <input v-model="onlyWithoutTask" type="checkbox" class="checkbox checkbox-xs" />
-        Without task
-      </label>
+      <BaseCheckBox
+        label="Without task"
+        :checked="onlyWithoutTask"
+        @change="onlyWithoutTask = ($event.target as HTMLInputElement).checked"
+      />
 
-      <label class="label cursor-pointer gap-1.5 text-xs">
-        <input v-model="compare" type="checkbox" class="checkbox checkbox-xs" />
-        Compare to previous period
-      </label>
+      <BaseCheckBox
+        label="Compare to previous period"
+        :checked="compare"
+        @change="compare = ($event.target as HTMLInputElement).checked"
+      />
 
       <select v-model="groupBy" class="select select-bordered select-sm ml-auto">
         <option value="project">Group by project</option>
