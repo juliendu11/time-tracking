@@ -1,11 +1,129 @@
-# TimeTracker
+# ⏱️ TimeTracker
 
-A local-first, offline desktop time tracking application. No account, no
-cloud, no server — everything lives in a SQLite database on your machine.
+**A local-first, offline desktop app for tracking time on your projects —
+no account, no cloud, no subscription.**
+
+Every second you track lives in a single SQLite file on your own machine.
+Nothing is ever sent anywhere: no server, no telemetry, no sign-up screen
+standing between you and starting a timer. Start it, work, stop it — your
+data stays yours, readable, exportable, and backed up entirely offline.
+
+Whether you're a freelancer who needs to know where the billable hours
+went, a developer juggling a handful of side projects, or just someone who
+wants an honest picture of how their days actually get spent, TimeTracker
+gives you a fast timer, a real dashboard, and reports — without asking for
+your email address first.
+
+<p>
+  <img alt="Electron" src="https://img.shields.io/badge/Electron-2B2E3A?style=flat&logo=electron&logoColor=9FEAF9" />
+  <img alt="Vue 3" src="https://img.shields.io/badge/Vue_3-35495E?style=flat&logo=vuedotjs&logoColor=4FC08D" />
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat&logo=typescript&logoColor=white" />
+  <img alt="SQLite" src="https://img.shields.io/badge/SQLite-local--first-003B57?style=flat&logo=sqlite&logoColor=white" />
+  <img alt="Tailwind + DaisyUI" src="https://img.shields.io/badge/Tailwind_CSS-DaisyUI-38BDF8?style=flat&logo=tailwindcss&logoColor=white" />
+  <img alt="pnpm" src="https://img.shields.io/badge/pnpm-required-F69220?style=flat&logo=pnpm&logoColor=white" />
+</p>
 
 Built with Electron, Vue 3 (Composition API, `<script setup>`, strict
 TypeScript), Tailwind CSS + DaisyUI, Pinia, and SQLite via `better-sqlite3` +
 Drizzle ORM.
+
+---
+
+## Table of contents
+
+- [Features](#features)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Development](#development)
+- [Database](#database)
+- [Architecture](#architecture)
+- [Build](#build)
+- [Packaging](#packaging)
+- [Testing](#testing)
+- [Project structure](#project-structure)
+- [Keyboard shortcuts](#keyboard-shortcuts)
+- [Data location](#data-location)
+- [Backup & restore](#backup--restore)
+- [What's implemented vs. roadmap](#whats-implemented-vs-roadmap)
+
+---
+
+## Features
+
+### ⏱️ Timer & time tracking
+- One-click start/stop/pause/resume, always derived from timestamps —
+  never a counter that can drift or lose time across a restart or sleep.
+- Switching project/task mid-day atomically stops the running timer and
+  starts the new one — never two overlapping timers by accident.
+- **Idle & sleep detection**: if you step away or your machine sleeps
+  while a timer runs, TimeTracker never silently keeps (or silently
+  discards) that time — it asks you to **Remove**, **Keep**, or **Split**
+  the session once you're back.
+- Manual time entries for anything tracked after the fact, with automatic
+  overlap detection against your existing entries.
+- A **mini timer** window (always-on-top, optional) for keeping an eye on
+  the clock without the full app in view.
+
+### 📁 Projects & tasks
+- Projects with color, icon, status, favorites, archiving, an optional
+  hourly rate/currency, and both a **weekly hour target** and a **total
+  budget** — with live progress tracking against both.
+- Tasks with priority, status, favorites, and time estimates, filterable
+  and sortable per project.
+- Tags for cutting across projects however you actually think about your
+  work.
+
+### 📊 Dashboard & insights
+- Today/this-week totals with week-over-week change.
+- A 7-day chart, a 12-month contribution-style heatmap, a project
+  distribution donut, and a top-tasks breakdown.
+- A **Focus Score** — session length, interruptions, and goal completion
+  distilled into one number, with a plain-language breakdown, not a
+  black-box metric.
+- Streaks, daily averages, longest session, most productive day/hour, and
+  weekly consistency — all computed locally from your own history.
+
+### 🧾 Timesheet & reports
+- A weekly, spreadsheet-style **Timesheet** with inline duration editing
+  (`2h30`, `1:30`, `90m` all parse the same way) and one-click "duplicate
+  last week."
+- A day-by-day **Timeline** agenda view.
+- A flexible **Reports** page: group by project, task, day, week, month,
+  or tag, over any preset or custom date range, with optional
+  side-by-side comparison against the previous period.
+
+### 🔍 Search & command palette
+- `⌘/Ctrl + K` opens a command palette that searches projects, tasks, time
+  entries, and tags at once, and surfaces **smart suggestions** — "probably
+  what you want to start next" ranked from recency, frequency, your
+  current project, your habitual time of day, and favorites. Fully local,
+  transparent scoring — no ML, no external service.
+
+### 🔔 Notifications & idle detection
+- Desktop notifications for idle prompts and other timer events, with a
+  one-click test notification in Settings.
+- Configurable idle threshold and behavior when switching tasks while a
+  timer is already running.
+
+### 🖥️ Desktop integration
+- A system **tray** icon showing the live timer and quick access to
+  recent tasks — start/stop/pause without opening the window.
+- A **global keyboard shortcut** (configurable) to start/stop the
+  last-used timer from anywhere, even while the app isn't focused.
+
+### 💾 Data & privacy
+- Everything lives in one local SQLite database — no account, no cloud
+  sync, nothing leaves your machine.
+- Automatic backups on a daily/weekly schedule (with pruning), plus manual
+  backup, restore (with an automatic safety backup first), and JSON/CSV
+  export whenever you want a copy in your own hands.
+
+### 🎨 Customization
+- Theme (light/dark/system), language, week start day, 12h/24h time,
+  and date format.
+- Per-behavior toggles for idle detection, quick-switch behavior, launch
+  at startup, minimize to tray, and more — all in a dedicated Settings
+  page, not buried in a config file.
 
 ---
 
@@ -211,3 +329,12 @@ Kept explicitly out of this pass rather than faked: code-signing for
 packaged installers, an auto-update server, and a Pomodoro *notification*
 flow (the settings exist and are wired for a future timer/notification
 integration, but the countdown UI itself isn't built).
+
+Design docs for a longer list of possible future features — invoicing &
+billable time, scoped CSV/PDF/iCal exports, project budget alerts, a real
+Pomodoro engine, recurring tasks, a calendar view, expanded global
+shortcuts, a CLI companion, a "Wrapped"-style annual recap, a flex-time
+balance ledger, end-of-day gap review, and splitting a tracked block across
+projects — live under [`docs/features/`](docs/features/), each covering
+current state, proposed scope, and architecture fit before any of it is
+built.
