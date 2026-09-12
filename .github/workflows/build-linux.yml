@@ -2,8 +2,9 @@ name: Build (Linux)
 
 on:
   push:
-    branches: [main]
+    branches: [master, develop]
   pull_request:
+    branches: [master, develop]
   workflow_dispatch:
 
 jobs:
