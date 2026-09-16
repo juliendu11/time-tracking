@@ -1,18 +1,30 @@
 <script setup lang="ts">
-import {computed, onMounted, ref, watch} from 'vue'
-import {Play, Plus} from '@lucide/vue'
-import type {Project, ProjectStats, Task, TaskPriority} from '@shared/types/domain'
+import { computed, onMounted, ref, watch } from 'vue'
+import {
+  ChevronDown,
+  ChevronRight,
+  Folder,
+  FolderPlus,
+  Pencil,
+  Play,
+  Plus,
+  Trash2
+} from '@lucide/vue'
+import type { Project, ProjectStats, Task, TaskFolder, TaskPriority } from '@shared/types/domain'
 import {formatDurationSpaced} from '@shared/utils/duration'
 import {useProjectsStore} from '../../stores/projects'
+import { useTaskFoldersStore } from '../../stores/taskFolders'
 import {useTasksStore} from '../../stores/tasks'
 import {useTimerStore} from '../../stores/timer'
 import TaskRow from '../tasks/TaskRow.vue'
 import TaskFormModal from '../tasks/TaskFormModal.vue'
+import TaskFolderFormModal from '../tasks/TaskFolderFormModal.vue'
 
 const props = defineProps<{ id: string }>()
 
 const projectsStore = useProjectsStore()
 const tasksStore = useTasksStore()
+const taskFoldersStore = useTaskFoldersStore()
 const timerStore = useTimerStore()
 
 const project = ref<Project | null>(null)
@@ -21,19 +33,27 @@ const search = ref('')
 const statusFilter = ref<'all' | 'todo' | 'in_progress' | 'done'>('all')
 const sortBy = ref<'created' | 'priority' | 'name'>('created')
 const showTaskForm = ref(false)
+const initialTaskFolderId = ref<string | null>(null)
 const editingTask = ref<Task | null>(null)
+const showFolderForm = ref(false)
+const editingFolder = ref<TaskFolder | null>(null)
+const collapsedFolderIds = ref<Set<string>>(new Set())
 
 async function load(): Promise<void> {
   if (projectsStore.projects.length === 0) await projectsStore.load()
   project.value = projectsStore.byId(props.id) ?? (await window.desktop.projects.get(props.id))
   stats.value = await window.desktop.projects.getStats(props.id)
-  await tasksStore.loadForProject(props.id, true)
+  await Promise.all([
+    tasksStore.loadForProject(props.id, true),
+    taskFoldersStore.loadForProject(props.id)
+  ])
 }
 
 onMounted(load)
 watch(() => props.id, load)
 
 const tasks = computed(() => tasksStore.tasksFor(props.id))
+const taskFolders = computed(() => taskFoldersStore.foldersFor(props.id))
 
 const PRIORITY_WEIGHT: Record<TaskPriority, number> = {urgent: 0, high: 1, normal: 2, low: 3}
 
@@ -48,6 +68,27 @@ const filteredTasks = computed(() => {
     if (sortBy.value === 'priority') return PRIORITY_WEIGHT[a.priority] - PRIORITY_WEIGHT[b.priority]
     return b.createdAt.localeCompare(a.createdAt)
   })
+})
+
+const taskGroups = computed(() => {
+  const isFiltering = search.value.trim() !== '' || statusFilter.value !== 'all'
+  let grouped: Array<{
+    id: string
+    name: string
+    folder: TaskFolder | null
+    tasks: Task[]
+  }> = taskFolders.value.map((folder) => ({
+    id: folder.id,
+    name: folder.name,
+    folder,
+    tasks: filteredTasks.value.filter((task) => task.folderId === folder.id)
+  }))
+  if (isFiltering) grouped = grouped.filter((group) => group.tasks.length > 0)
+  const unfiled = filteredTasks.value.filter((task) => task.folderId === null)
+  if (unfiled.length > 0 || (!isFiltering && taskFolders.value.length === 0)) {
+    grouped.push({ id: '', name: 'No folder', folder: null, tasks: unfiled })
+  }
+  return grouped
 })
 
 const taskDurations = ref<Record<string, number>>({})
@@ -121,6 +162,33 @@ async function removeTask(task: Task): Promise<void> {
   await tasksStore.remove(task.id, props.id)
 }
 
+function openTaskForm(folderId: string | null = null): void {
+  initialTaskFolderId.value = folderId
+  showTaskForm.value = true
+}
+
+function closeTaskForm(): void {
+  showTaskForm.value = false
+  initialTaskFolderId.value = null
+}
+
+function toggleFolder(folderId: string): void {
+  const next = new Set(collapsedFolderIds.value)
+  if (next.has(folderId)) next.delete(folderId)
+  else next.add(folderId)
+  collapsedFolderIds.value = next
+}
+
+async function removeFolder(folder: TaskFolder): Promise<void> {
+  const taskCount = tasks.value.filter((task) => task.folderId === folder.id).length
+  const detail = taskCount === 0
+    ? ''
+    : ` Its ${taskCount} task${taskCount === 1 ? '' : 's'} will be moved to “No folder”.`
+  if (!window.confirm(`Delete folder "${folder.name}"?${detail}`)) return
+  await taskFoldersStore.remove(folder.id, props.id)
+  await tasksStore.loadForProject(props.id, true)
+}
+
 const weekProgress = computed(() => {
   if (!stats.value || !project.value?.weeklyTargetMinutes) return null
   return Math.min(100, Math.round((stats.value.week.durationSeconds / 60 / project.value.weeklyTargetMinutes) * 100))
@@ -183,29 +251,94 @@ const weekProgress = computed(() => {
             <option value="priority">Priority</option>
             <option value="name">Name</option>
           </select>
-          <button class="btn btn-ghost btn-xs gap-1" @click="showTaskForm = true">
+          <button class="btn btn-ghost btn-xs gap-1" @click="showFolderForm = true">
+            <FolderPlus :size="13" />
+            Folder
+          </button>
+          <button class="btn btn-ghost btn-xs gap-1" @click="openTaskForm()">
             <Plus :size="13" />
             Task
           </button>
         </div>
       </div>
 
-      <div class="space-y-1.5">
-        <TaskRow
-          v-for="task in filteredTasks"
-          :key="task.id"
-          :task="task"
-          :duration-seconds="liveTaskDurations[task.id] ?? 0"
-          :is-active="timerStore.snapshot?.task?.id === task.id"
-          @start="startTask(task)"
-          @toggle-complete="toggleComplete(task)"
-          @toggle-favorite="toggleFavorite(task)"
-          @edit="editingTask = task"
-          @archive="archiveTask(task)"
-          @delete="removeTask(task)"
-        />
-        <p v-if="filteredTasks.length === 0" class="py-8 text-center text-sm text-base-content/40">
+      <div class="space-y-4">
+        <section v-for="group in taskGroups" :key="group.id || 'unfiled'" class="group/folder">
+          <div
+            v-if="group.folder || taskFolders.length > 0"
+            class="mb-1.5 flex min-h-8 items-center gap-1 rounded-lg px-2 text-base-content/60 hover:bg-base-200/60"
+          >
+            <button
+              v-if="group.folder"
+              class="btn btn-ghost btn-xs btn-square"
+              :aria-label="collapsedFolderIds.has(group.id) ? 'Expand folder' : 'Collapse folder'"
+              @click="toggleFolder(group.id)"
+            >
+              <ChevronRight v-if="collapsedFolderIds.has(group.id)" :size="14" />
+              <ChevronDown v-else :size="14" />
+            </button>
+            <span v-else class="w-6" />
+            <Folder :size="15" :fill="group.folder ? 'currentColor' : 'none'" class="opacity-70" />
+            <span class="min-w-0 flex-1 truncate text-xs font-semibold uppercase tracking-wider">
+              {{ group.name }}
+            </span>
+            <span class="text-xs tabular-nums text-base-content/35">{{ group.tasks.length }}</span>
+            <template v-if="group.folder">
+              <button
+                class="btn btn-ghost btn-xs btn-square opacity-0 group-hover/folder:opacity-100"
+                aria-label="Add task to folder"
+                @click="openTaskForm(group.id)"
+              >
+                <Plus :size="12" />
+              </button>
+              <button
+                class="btn btn-ghost btn-xs btn-square opacity-0 group-hover/folder:opacity-100"
+                aria-label="Rename folder"
+                @click="editingFolder = group.folder"
+              >
+                <Pencil :size="12" />
+              </button>
+              <button
+                class="btn btn-ghost btn-xs btn-square text-error opacity-0 group-hover/folder:opacity-100"
+                aria-label="Delete folder"
+                @click="removeFolder(group.folder)"
+              >
+                <Trash2 :size="12" />
+              </button>
+            </template>
+          </div>
+
+          <div v-if="!group.folder || !collapsedFolderIds.has(group.id)" class="space-y-1.5">
+            <TaskRow
+              v-for="task in group.tasks"
+              :key="task.id"
+              :task="task"
+              :duration-seconds="liveTaskDurations[task.id] ?? 0"
+              :is-active="timerStore.snapshot?.task?.id === task.id"
+              @start="startTask(task)"
+              @toggle-complete="toggleComplete(task)"
+              @toggle-favorite="toggleFavorite(task)"
+              @edit="editingTask = task"
+              @archive="archiveTask(task)"
+              @delete="removeTask(task)"
+            />
+            <button
+              v-if="group.folder && group.tasks.length === 0 && !search && statusFilter === 'all'"
+              class="w-full rounded-lg border border-dashed border-base-300 py-3 text-xs text-base-content/35 transition-colors hover:border-primary/40 hover:text-primary"
+              @click="openTaskForm(group.id)"
+            >
+              Add the first task
+            </button>
+          </div>
+        </section>
+        <p v-if="filteredTasks.length === 0 && taskFolders.length === 0" class="py-8 text-center text-sm text-base-content/40">
           No tasks yet
+        </p>
+        <p
+          v-else-if="taskGroups.length === 0"
+          class="py-8 text-center text-sm text-base-content/40"
+        >
+          No matching tasks
         </p>
       </div>
     </div>
@@ -213,13 +346,27 @@ const weekProgress = computed(() => {
     <TaskFormModal
       v-if="showTaskForm"
       :project-id="props.id"
-      @close="showTaskForm = false"
+      :folders="taskFolders"
+      :initial-folder-id="initialTaskFolderId"
+      @close="closeTaskForm"
     />
     <TaskFormModal
       v-if="editingTask"
       :project-id="props.id"
       :task="editingTask"
+      :folders="taskFolders"
       @close="editingTask = null"
+    />
+    <TaskFolderFormModal
+      v-if="showFolderForm"
+      :project-id="props.id"
+      @close="showFolderForm = false"
+    />
+    <TaskFolderFormModal
+      v-if="editingFolder"
+      :project-id="props.id"
+      :folder="editingFolder"
+      @close="editingFolder = null"
     />
   </div>
 </template>

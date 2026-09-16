@@ -16,15 +16,17 @@ import type { ProjectRepository } from '@main/repositories/project.repository'
 import type { SettingsRepository } from '@main/repositories/settings.repository'
 import type { TagRepository } from '@main/repositories/tag.repository'
 import type { TaskRepository } from '@main/repositories/task.repository'
+import type { TaskFolderRepository } from '@main/repositories/taskFolder.repository'
 import type { TimeEntryRepository } from '@main/repositories/timeEntry.repository'
 import { nowIso } from '@shared/utils/time'
 import type { BackupFileInfo, ExportBundle } from '@shared/types/domain'
 
-const EXPORT_VERSION = 1
+const EXPORT_VERSION = 2
 
 export class BackupService {
   constructor(
     private readonly projects: ProjectRepository,
+    private readonly taskFolders: TaskFolderRepository,
     private readonly tasks: TaskRepository,
     private readonly timeEntries: TimeEntryRepository,
     private readonly tags: TagRepository,
@@ -41,11 +43,13 @@ export class BackupService {
       })
     )
     const tasks = projects.flatMap((p) => this.tasks.listByProject(p.id, { includeArchived: true }))
+    const taskFolders = projects.flatMap((p) => this.taskFolders.listByProject(p.id))
 
     return {
       exportedAt: nowIso(),
       version: EXPORT_VERSION,
       projects,
+      taskFolders,
       tasks,
       timeEntries,
       tags: this.tags.list(),

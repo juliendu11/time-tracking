@@ -44,9 +44,24 @@ export type ProjectUpdate = Partial<ProjectInput>
 export type TaskStatus = 'todo' | 'in_progress' | 'done' | 'archived'
 export type TaskPriority = 'low' | 'normal' | 'high' | 'urgent'
 
+export interface TaskFolder {
+  id: string
+  projectId: string
+  name: string
+  position: number
+  createdAt: string
+  updatedAt: string
+}
+
+export type TaskFolderInput = Pick<TaskFolder, 'projectId' | 'name'> &
+  Partial<Pick<TaskFolder, 'position'>>
+
+export type TaskFolderUpdate = Partial<Pick<TaskFolder, 'name' | 'position'>>
+
 export interface Task {
   id: string
   projectId: string
+  folderId: string | null
   name: string
   description: string | null
   status: TaskStatus
@@ -63,7 +78,12 @@ export type TaskInput = Pick<Task, 'projectId' | 'name'> &
   Partial<
     Pick<
       Task,
-      'description' | 'status' | 'priority' | 'estimatedMinutes' | 'isFavorite'
+      | 'folderId'
+      | 'description'
+      | 'status'
+      | 'priority'
+      | 'estimatedMinutes'
+      | 'isFavorite'
     >
   >
 
@@ -308,6 +328,7 @@ export interface ExportBundle {
   exportedAt: string
   version: number
   projects: Project[]
+  taskFolders: TaskFolder[]
   tasks: Task[]
   timeEntries: TimeEntry[]
   tags: Tag[]

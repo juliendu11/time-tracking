@@ -1,8 +1,8 @@
 import { and, eq } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import type { AppDatabase } from '@main/db/client'
-import { tasks } from '@main/db/schema'
-import { NotFoundError } from '@main/errors'
+import { taskFolders, tasks } from '@main/db/schema'
+import { NotFoundError, ValidationError } from '@main/errors'
 import { nowIso } from '@shared/utils/time'
 import type {
   Task,
@@ -18,6 +18,7 @@ function toDomain(row: TaskRow): Task {
   return {
     id: row.id,
     projectId: row.projectId,
+    folderId: row.folderId,
     name: row.name,
     description: row.description,
     status: row.status as TaskStatus,
@@ -52,10 +53,12 @@ export class TaskRepository {
   }
 
   create(input: TaskInput): Task {
+    this.assertFolderBelongsToProject(input.folderId, input.projectId)
     const now = nowIso()
     const row = {
       id: nanoid(),
       projectId: input.projectId,
+      folderId: input.folderId ?? null,
       name: input.name.trim(),
       description: input.description ?? null,
       status: input.status ?? 'todo',
@@ -72,7 +75,11 @@ export class TaskRepository {
   }
 
   update(id: string, update: TaskUpdate): Task {
-    this.getOrThrow(id)
+    const current = this.getOrThrow(id)
+    this.assertFolderBelongsToProject(
+      update.folderId === undefined ? current.folderId : update.folderId,
+      update.projectId ?? current.projectId
+    )
     const patch: Partial<TaskRow> & { updatedAt: string } = { ...update, updatedAt: nowIso() }
     if (update.status === 'done') patch.completedAt = nowIso()
     if (update.status === 'archived') patch.archivedAt = nowIso()
@@ -95,5 +102,13 @@ export class TaskRepository {
       .from(tasks)
       .where(and(eq(tasks.projectId, projectId), eq(tasks.status, 'todo')))
       .all().length
+  }
+
+  private assertFolderBelongsToProject(folderId: string | null | undefined, projectId: string): void {
+    if (!folderId) return
+    const folder = this.db.select().from(taskFolders).where(eq(taskFolders.id, folderId)).get()
+    if (!folder || folder.projectId !== projectId) {
+      throw new ValidationError('The selected folder does not belong to this project.')
+    }
   }
 }

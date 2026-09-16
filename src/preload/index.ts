@@ -27,6 +27,12 @@ const desktopApi: DesktopApi = {
     archive: (id) => invoke(IPC_CHANNELS.tasksArchive, id),
     delete: (id) => invoke(IPC_CHANNELS.tasksDelete, id)
   },
+  taskFolders: {
+    listByProject: (projectId) => invoke(IPC_CHANNELS.taskFoldersListByProject, projectId),
+    create: (input) => invoke(IPC_CHANNELS.taskFoldersCreate, input),
+    update: (id, update) => invoke(IPC_CHANNELS.taskFoldersUpdate, id, update),
+    delete: (id) => invoke(IPC_CHANNELS.taskFoldersDelete, id)
+  },
   timeEntries: {
     listInRange: (startDate, endDate, projectId) =>
       invoke(IPC_CHANNELS.timeEntriesListInRange, startDate, endDate, projectId),

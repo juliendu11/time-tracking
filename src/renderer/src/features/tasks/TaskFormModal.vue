@@ -1,15 +1,21 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
-import type { Task, TaskPriority } from '@shared/types/domain'
+import type { Task, TaskFolder, TaskPriority } from '@shared/types/domain'
 import { useTasksStore } from '../../stores/tasks'
 
-const props = defineProps<{ projectId: string; task?: Task }>()
+const props = defineProps<{
+  projectId: string
+  task?: Task
+  folders?: TaskFolder[]
+  initialFolderId?: string | null
+}>()
 const emit = defineEmits<{ close: [] }>()
 
 const tasksStore = useTasksStore()
 
 const form = reactive({
   name: props.task?.name ?? '',
+  folderId: props.task?.folderId ?? props.initialFolderId ?? null,
   description: props.task?.description ?? '',
   priority: (props.task?.priority ?? 'normal') as TaskPriority,
   estimatedHours: props.task?.estimatedMinutes ? props.task.estimatedMinutes / 60 : null
@@ -27,6 +33,7 @@ async function submit(): Promise<void> {
   try {
     const payload = {
       name: form.name.trim(),
+      folderId: form.folderId,
       description: form.description || null,
       priority: form.priority,
       estimatedMinutes: form.estimatedHours ? Math.round(form.estimatedHours * 60) : null
@@ -54,6 +61,15 @@ async function submit(): Promise<void> {
         <div>
           <label class="mb-1 block text-xs font-medium text-base-content/60">Name</label>
           <input v-model="form.name" class="input input-bordered input-sm w-full" placeholder="Task name" />
+        </div>
+        <div>
+          <label class="mb-1 block text-xs font-medium text-base-content/60">Folder</label>
+          <select v-model="form.folderId" class="select select-bordered select-sm w-full">
+            <option :value="null">No folder</option>
+            <option v-for="folder in folders" :key="folder.id" :value="folder.id">
+              {{ folder.name }}
+            </option>
+          </select>
         </div>
         <div>
           <label class="mb-1 block text-xs font-medium text-base-content/60">Description</label>

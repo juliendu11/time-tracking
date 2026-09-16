@@ -25,6 +25,21 @@ export const projects = sqliteTable('projects', {
   archivedAt: text('archived_at')
 })
 
+export const taskFolders = sqliteTable(
+  'task_folders',
+  {
+    id: text('id').primaryKey(),
+    projectId: text('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    position: integer('position').notNull().default(0),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull()
+  },
+  (table) => [index('idx_task_folders_project_id').on(table.projectId)]
+)
+
 export const tasks = sqliteTable(
   'tasks',
   {
@@ -32,6 +47,7 @@ export const tasks = sqliteTable(
     projectId: text('project_id')
       .notNull()
       .references(() => projects.id, { onDelete: 'cascade' }),
+    folderId: text('folder_id').references(() => taskFolders.id, { onDelete: 'set null' }),
     name: text('name').notNull(),
     description: text('description'),
     status: text('status').notNull().default('todo'),
@@ -43,7 +59,10 @@ export const tasks = sqliteTable(
     completedAt: text('completed_at'),
     archivedAt: text('archived_at')
   },
-  (table) => [index('idx_tasks_project_id').on(table.projectId)]
+  (table) => [
+    index('idx_tasks_project_id').on(table.projectId),
+    index('idx_tasks_folder_id').on(table.folderId)
+  ]
 )
 
 export const timeEntries = sqliteTable(
