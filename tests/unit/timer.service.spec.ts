@@ -36,17 +36,17 @@ describe('TimerService', () => {
   it('stop() finalises a TimeEntry with the elapsed duration', () => {
     vi.useFakeTimers()
     const project = createProject()
-    env.timer.start({ projectId: project.id })
+    const timer = env.timer.start({ projectId: project.id })
     vi.advanceTimersByTime(90_000)
 
-    const entry = env.timer.stop()
+    const entry = env.timer.stop(timer.timer.id)
     expect(entry).not.toBeNull()
     expect(entry?.durationSeconds).toBe(90)
-    expect(env.timer.getSnapshot()).toBeNull()
+    expect(env.timer.getSnapshots()).toHaveLength(0)
     vi.useRealTimers()
   })
 
-  it('switching tasks atomically stops the previous timer and starts a new one', () => {
+  it('runs multiple task timers at the same time without finalising either one', () => {
     vi.useFakeTimers()
     const project = createProject()
     const taskA = env.tasks.create({ projectId: project.id, name: 'Task A' })
@@ -54,32 +54,77 @@ describe('TimerService', () => {
 
     env.timer.start({ projectId: project.id, taskId: taskA.id })
     vi.advanceTimersByTime(60_000)
-    env.timer.switchTask(taskB.id)
+    env.timer.start({ projectId: project.id, taskId: taskB.id })
 
     const entries = env.timeEntries.listRecent(10)
-    expect(entries).toHaveLength(1)
-    expect(entries[0]?.taskId).toBe(taskA.id)
-    expect(entries[0]?.durationSeconds).toBe(60)
+    expect(entries).toHaveLength(0)
 
-    const snapshot = env.timer.getSnapshot()
-    expect(snapshot?.task?.id).toBe(taskB.id)
+    const snapshots = env.timer.getSnapshots()
+    expect(snapshots).toHaveLength(2)
+    expect(snapshots.map((snapshot) => snapshot.task?.id)).toEqual([taskA.id, taskB.id])
+    vi.useRealTimers()
+  })
+
+  it('runs timers with and without tasks concurrently', () => {
+    const project = createProject()
+    const task = env.tasks.create({ projectId: project.id, name: 'Task' })
+
+    env.timer.start({ projectId: project.id })
+    env.timer.start({ projectId: project.id, taskId: task.id })
+
+    const snapshots = env.timer.getSnapshots()
+    expect(snapshots).toHaveLength(2)
+    expect(snapshots.some((snapshot) => snapshot.task === null)).toBe(true)
+    expect(snapshots.some((snapshot) => snapshot.task?.id === task.id)).toBe(true)
+  })
+
+  it('emits the complete active timer list after every start', () => {
+    const projectA = createProject('Project A')
+    const projectB = createProject('Project B')
+    const changes: number[] = []
+    env.timer.on('changed', (snapshots) => changes.push(snapshots.length))
+
+    env.timer.start({ projectId: projectA.id })
+    env.timer.start({ projectId: projectB.id })
+
+    expect(changes).toEqual([1, 2])
+  })
+
+  it('pauses and stops timers independently', () => {
+    vi.useFakeTimers()
+    const projectA = createProject('Project A')
+    const projectB = createProject('Project B')
+    const timerA = env.timer.start({ projectId: projectA.id })
+    const timerB = env.timer.start({ projectId: projectB.id })
+
+    vi.advanceTimersByTime(30_000)
+    env.timer.pause(timerA.timer.id)
+    vi.advanceTimersByTime(20_000)
+
+    const snapshots = env.timer.getSnapshots()
+    expect(snapshots.find((snapshot) => snapshot.timer.id === timerA.timer.id)?.elapsedSeconds).toBe(30)
+    expect(snapshots.find((snapshot) => snapshot.timer.id === timerB.timer.id)?.elapsedSeconds).toBe(50)
+
+    const entry = env.timer.stop(timerA.timer.id)
+    expect(entry?.projectId).toBe(projectA.id)
+    expect(env.timer.getSnapshots().map((snapshot) => snapshot.timer.id)).toEqual([timerB.timer.id])
     vi.useRealTimers()
   })
 
   it('pause freezes elapsed time and resume continues counting', () => {
     vi.useFakeTimers()
     const project = createProject()
-    env.timer.start({ projectId: project.id })
+    const timer = env.timer.start({ projectId: project.id })
 
     vi.advanceTimersByTime(30_000)
-    env.timer.pause()
+    env.timer.pause(timer.timer.id)
     vi.advanceTimersByTime(45_000)
-    const paused = env.timer.getSnapshot()
+    const paused = env.timer.getSnapshots()[0]
     expect(paused?.elapsedSeconds).toBe(30)
 
-    env.timer.resume()
+    env.timer.resume(timer.timer.id)
     vi.advanceTimersByTime(10_000)
-    const resumed = env.timer.getSnapshot()
+    const resumed = env.timer.getSnapshots()[0]
     expect(resumed?.elapsedSeconds).toBe(40)
     vi.useRealTimers()
   })
@@ -91,8 +136,9 @@ describe('TimerService', () => {
     // Simulate an app restart: a brand new TimerService instance reading
     // from the same database must see the same running timer.
     const revived = new TimerService(env.db, env.projects, env.tasks, env.timeEntries, env.settings)
-    const snapshot = revived.restore()
-    expect(snapshot?.project.id).toBe(project.id)
+    const snapshots = revived.restore()
+    expect(snapshots).toHaveLength(1)
+    expect(snapshots[0]?.project.id).toBe(project.id)
   })
 
   it('idle resolution "discard" excludes idle time from the running timer', () => {
@@ -107,10 +153,32 @@ describe('TimerService', () => {
     env.timer.notifyIdleDetected(idleStartedAt, 300)
 
     env.timer.resolveIdlePrompt('discard')
-    const snapshot = env.timer.getSnapshot()
+    const snapshot = env.timer.getSnapshots()[0]
     // 6 minutes elapsed total, 5 minutes discarded -> ~1 minute counted
     expect(snapshot?.elapsedSeconds).toBeGreaterThanOrEqual(59)
     expect(snapshot?.elapsedSeconds).toBeLessThanOrEqual(61)
+    vi.useRealTimers()
+  })
+
+  it('applies idle resolution to every running timer', () => {
+    vi.useFakeTimers()
+    const start = Date.now()
+    const projectA = createProject('Project A')
+    const projectB = createProject('Project B')
+    env.timer.start({ projectId: projectA.id })
+    env.timer.start({ projectId: projectB.id })
+
+    vi.advanceTimersByTime(60_000)
+    const idleStartedAt = new Date(start + 60_000).toISOString()
+    vi.advanceTimersByTime(5 * 60_000)
+    env.timer.notifyIdleDetected(idleStartedAt, 300)
+    env.timer.resolveIdlePrompt('discard')
+
+    expect(env.timer.getSnapshots()).toHaveLength(2)
+    for (const snapshot of env.timer.getSnapshots()) {
+      expect(snapshot.elapsedSeconds).toBeGreaterThanOrEqual(59)
+      expect(snapshot.elapsedSeconds).toBeLessThanOrEqual(61)
+    }
     vi.useRealTimers()
   })
 
@@ -125,10 +193,10 @@ describe('TimerService', () => {
     vi.advanceTimersByTime(5 * 60_000)
     env.timer.notifyIdleDetected(idleStartedAt, 300)
 
-    const closedEntry = env.timer.resolveIdlePrompt('split')
+    const [closedEntry] = env.timer.resolveIdlePrompt('split')
     expect(closedEntry?.durationSeconds).toBe(60)
 
-    const snapshot = env.timer.getSnapshot()
+    const snapshot = env.timer.getSnapshots()[0]
     expect(snapshot?.project.id).toBe(project.id)
     expect(snapshot?.elapsedSeconds).toBeLessThanOrEqual(1)
     vi.useRealTimers()
@@ -143,7 +211,7 @@ describe('TimerService', () => {
     env.timer.notifyIdleDetected(new Date().toISOString(), 300)
     env.timer.resolveIdlePrompt('keep')
 
-    const snapshot = env.timer.getSnapshot()
+    const snapshot = env.timer.getSnapshots()[0]
     expect(snapshot?.elapsedSeconds).toBeGreaterThanOrEqual(359)
     vi.useRealTimers()
   })

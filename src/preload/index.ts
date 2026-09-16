@@ -45,18 +45,16 @@ const desktopApi: DesktopApi = {
     delete: (id) => invoke(IPC_CHANNELS.tagsDelete, id)
   },
   timer: {
-    getSnapshot: () => invoke(IPC_CHANNELS.timerGetSnapshot),
+    getSnapshots: () => invoke(IPC_CHANNELS.timerGetSnapshots),
     start: (params) => invoke(IPC_CHANNELS.timerStart, params),
-    stop: () => invoke(IPC_CHANNELS.timerStop),
-    pause: () => invoke(IPC_CHANNELS.timerPause),
-    resume: () => invoke(IPC_CHANNELS.timerResume),
-    switchTask: (taskId) => invoke(IPC_CHANNELS.timerSwitchTask, taskId),
-    switchProject: (projectId) => invoke(IPC_CHANNELS.timerSwitchProject, projectId),
+    stop: (timerId) => invoke(IPC_CHANNELS.timerStop, timerId),
+    pause: (timerId) => invoke(IPC_CHANNELS.timerPause, timerId),
+    resume: (timerId) => invoke(IPC_CHANNELS.timerResume, timerId),
     getPendingIdlePrompt: () => invoke(IPC_CHANNELS.timerGetPendingIdlePrompt),
     resolveIdlePrompt: (resolution) => invoke(IPC_CHANNELS.timerResolveIdlePrompt, resolution),
     onChanged: (callback) => {
-      const listener = (_event: Electron.IpcRendererEvent, snapshot: Parameters<typeof callback>[0]): void =>
-        callback(snapshot)
+      const listener = (_event: Electron.IpcRendererEvent, snapshots: Parameters<typeof callback>[0]): void =>
+        callback(snapshots)
       ipcRenderer.on(IPC_CHANNELS.timerChangedEvent, listener)
       return () => ipcRenderer.removeListener(IPC_CHANNELS.timerChangedEvent, listener)
     },

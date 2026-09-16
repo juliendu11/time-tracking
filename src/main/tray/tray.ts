@@ -33,7 +33,7 @@ export function destroyTray(): void {
 
 function rebuildTrayMenu(context: AppContext): void {
   if (!tray) return
-  const snapshot = context.timer.getSnapshot()
+  const snapshots = context.timer.getSnapshots()
 
   const recentEntries = context.timeEntries.listRecent(8)
   const seen = new Set<string>()
@@ -52,24 +52,28 @@ function rebuildTrayMenu(context: AppContext): void {
       return {
         label: `▶ ${label}`,
         click: () => {
-          if (task) context.timer.switchTask(task.id)
-          else if (project) context.timer.switchProject(project.id)
+          if (project) context.timer.start({ projectId: project.id, taskId: task?.id ?? null })
         }
       }
     })
 
-  const header = snapshot
-    ? [
-        { label: `● ${snapshot.project.name}`, enabled: false },
-        ...(snapshot.task ? [{ label: `  ${snapshot.task.name}`, enabled: false }] : []),
-        { label: `  ${formatDurationClock(snapshot.elapsedSeconds)}`, enabled: false },
-        {
-          label: snapshot.isPaused ? 'Resume timer' : 'Pause timer',
-          click: () => (snapshot.isPaused ? context.timer.resume() : context.timer.pause())
-        },
-        { label: 'Stop timer', click: () => context.timer.stop() }
-      ]
-    : [{ label: 'No timer running', enabled: false }]
+  const header =
+    snapshots.length > 0
+      ? snapshots.flatMap((snapshot, index) => [
+          ...(index > 0 ? [{ type: 'separator' as const }] : []),
+          { label: `● ${snapshot.project.name}`, enabled: false },
+          { label: `  ${snapshot.task?.name ?? 'No task'}`, enabled: false },
+          { label: `  ${formatDurationClock(snapshot.elapsedSeconds)}`, enabled: false },
+          {
+            label: snapshot.isPaused ? 'Resume timer' : 'Pause timer',
+            click: () =>
+              snapshot.isPaused
+                ? context.timer.resume(snapshot.timer.id)
+                : context.timer.pause(snapshot.timer.id)
+          },
+          { label: 'Stop timer', click: () => context.timer.stop(snapshot.timer.id) }
+        ])
+      : [{ label: 'No timer running', enabled: false }]
 
   const menu = Menu.buildFromTemplate([
     { label: 'TimeTracker', enabled: false },
@@ -85,6 +89,8 @@ function rebuildTrayMenu(context: AppContext): void {
 
   tray.setContextMenu(menu)
   tray.setToolTip(
-    snapshot ? `TimeTracker — ${snapshot.project.name} ${formatDurationClock(snapshot.elapsedSeconds)}` : 'TimeTracker'
+    snapshots.length > 0
+      ? `TimeTracker — ${snapshots.length} active timer${snapshots.length === 1 ? '' : 's'}`
+      : 'TimeTracker'
   )
 }

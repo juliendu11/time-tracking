@@ -147,10 +147,9 @@ export const appSettings = sqliteTable('app_settings', {
     .default(true)
 })
 
-/** Single-row table holding the one active timer in the whole app (id always 1). */
+/** All timers currently active in the app. */
 export const activeTimer = sqliteTable('active_timer', {
-  id: integer('id').primaryKey(),
-  timerId: text('timer_id').notNull(),
+  timerId: text('timer_id').primaryKey(),
   projectId: text('project_id')
     .notNull()
     .references(() => projects.id, { onDelete: 'cascade' }),

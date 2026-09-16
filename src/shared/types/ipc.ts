@@ -80,16 +80,14 @@ export interface DesktopApi {
     delete(id: string): Promise<void>
   }
   timer: {
-    getSnapshot(): Promise<RunningTimerSnapshot | null>
+    getSnapshots(): Promise<RunningTimerSnapshot[]>
     start(params: { projectId: string; taskId?: string | null; description?: string | null }): Promise<RunningTimerSnapshot>
-    stop(): Promise<TimeEntry | null>
-    pause(): Promise<RunningTimerSnapshot>
-    resume(): Promise<RunningTimerSnapshot>
-    switchTask(taskId: string): Promise<RunningTimerSnapshot>
-    switchProject(projectId: string): Promise<RunningTimerSnapshot>
+    stop(timerId: string): Promise<TimeEntry | null>
+    pause(timerId: string): Promise<RunningTimerSnapshot>
+    resume(timerId: string): Promise<RunningTimerSnapshot>
     getPendingIdlePrompt(): Promise<IdlePromptPayload | null>
-    resolveIdlePrompt(resolution: IdleResolution): Promise<TimeEntry | null>
-    onChanged(callback: (snapshot: RunningTimerSnapshot | null) => void): () => void
+    resolveIdlePrompt(resolution: IdleResolution): Promise<TimeEntry[]>
+    onChanged(callback: (snapshots: RunningTimerSnapshot[]) => void): () => void
     onIdleDetected(callback: (payload: IdlePromptPayload) => void): () => void
   }
   settings: {
@@ -167,13 +165,11 @@ export const IPC_CHANNELS = {
   tagsCreate: 'tags:create',
   tagsDelete: 'tags:delete',
 
-  timerGetSnapshot: 'timer:getSnapshot',
+  timerGetSnapshots: 'timer:getSnapshots',
   timerStart: 'timer:start',
   timerStop: 'timer:stop',
   timerPause: 'timer:pause',
   timerResume: 'timer:resume',
-  timerSwitchTask: 'timer:switchTask',
-  timerSwitchProject: 'timer:switchProject',
   timerGetPendingIdlePrompt: 'timer:getPendingIdlePrompt',
   timerResolveIdlePrompt: 'timer:resolveIdlePrompt',
   timerChangedEvent: 'timer:changed',

@@ -191,18 +191,11 @@ async function sendTestNotification(): Promise<void> {
 
       <section v-else-if="tab === 'timer'" class="space-y-4">
         <h2 class="text-base font-semibold">Timer</h2>
-        <div class="form-control">
-          <label class="label"><span
-            class="label-text"
-          >When starting a timer while one is already running</span></label>
-          <select
-            class="select select-bordered select-sm w-72"
-            :value="settingsStore.settings.quickSwitchBehavior"
-            @change="set({ quickSwitchBehavior: ($event.target as HTMLSelectElement).value as 'atomic_switch' | 'ask_to_stop' })"
-          >
-            <option value="atomic_switch">Switch immediately (stop old, start new)</option>
-            <option value="ask_to_stop">Ask for confirmation first</option>
-          </select>
+        <div class="rounded-lg border border-base-300 bg-base-200/40 p-3">
+          <p class="text-sm font-medium">Parallel timers</p>
+          <p class="mt-1 text-xs text-base-content/60">
+            Starting a project or task creates a new independent timer. Active timers can be paused or stopped separately.
+          </p>
         </div>
         <div class="grid grid-cols-2 gap-5">
           <BaseCheckBox

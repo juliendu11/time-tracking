@@ -53,8 +53,12 @@ Drizzle ORM.
 ### ⏱️ Timer & time tracking
 - One-click start/stop/pause/resume, always derived from timestamps —
   never a counter that can drift or lose time across a restart or sleep.
-- Switching project/task mid-day atomically stops the running timer and
-  starts the new one — never two overlapping timers by accident.
+- Start several independent timers at once, on different projects or tasks,
+  or directly on a project without selecting a task.
+- Pause, resume, and stop each active timer independently from the sidebar,
+  tray, or mini-timer window.
+- A dedicated **Timers** workspace lists every active timer and can launch
+  another one for any project, with an optional task and description.
 - **Idle & sleep detection**: if you step away or your machine sleeps
   while a timer runs, TimeTracker never silently keeps (or silently
   discards) that time — it asks you to **Remove**, **Keep**, or **Split**
@@ -102,11 +106,11 @@ Drizzle ORM.
 ### 🔔 Notifications & idle detection
 - Desktop notifications for idle prompts and other timer events, with a
   one-click test notification in Settings.
-- Configurable idle threshold and behavior when switching tasks while a
-  timer is already running.
+- Configurable idle threshold; idle decisions apply consistently to every
+  timer that was running during the absence.
 
 ### 🖥️ Desktop integration
-- A system **tray** icon showing the live timer and quick access to
+- A system **tray** icon showing the live timers and quick access to
   recent tasks — start/stop/pause without opening the window.
 - A **global keyboard shortcut** (configurable) to start/stop the
   last-used timer from anywhere, even while the app isn't focused.
@@ -206,14 +210,14 @@ script exposes only a narrow, fully-typed `window.desktop` API
 ### The timer
 
 `TimerService` (`src/main/services/timer.service.ts`) is the single source
-of truth for the one active timer in the whole app. It's backed by a
-single-row `active_timer` table, not renderer state:
+of truth for all active timers in the app. They are backed by the
+`active_timer` table, not renderer state:
 
 - Elapsed time is always **derived from timestamps** (`startedAt`,
   `accumulatedPauseSeconds`, `pausedAt`) — never from an incrementing
   counter — so it survives page navigation, app restarts, and sleep.
-- `start()` atomically stops any running timer (inside one SQLite
-  transaction) before starting the new one.
+- `start()` inserts an independent timer without changing timers that are
+  already active; pause, resume, and stop operations target a timer ID.
 - Idle time and sleep gaps never silently disappear: `IdleService` detects
   them and the renderer prompts **Remove idle time / Keep idle time / Split
   session** before anything is changed.
@@ -254,7 +258,7 @@ pnpm test:watch  # vitest, watch mode
 ```
 
 Tests are concentrated on the logic where a bug would silently corrupt
-tracked time: `TimerService` (start/stop/switch/pause/resume/restore/idle
+tracked time: `TimerService` (start/stop/pause/resume/restore/idle
 resolution), day-boundary and DST-safe time splitting
 (`src/shared/utils/time.ts`), duration parsing/formatting, and report
 aggregation (dashboard totals, heatmap splitting, grouping, weekly

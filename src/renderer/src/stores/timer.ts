@@ -4,7 +4,7 @@ import { computeElapsedSeconds } from '@shared/utils/time'
 import type { IdlePromptPayload, IdleResolution, RunningTimerSnapshot, TimeEntry } from '@shared/types/domain'
 
 export const useTimerStore = defineStore('timer', () => {
-  const snapshot = ref<RunningTimerSnapshot | null>(null)
+  const snapshots = ref<RunningTimerSnapshot[]>([])
   const idlePrompt = ref<IdlePromptPayload | null>(null)
   const now = ref(new Date())
 
@@ -13,11 +13,11 @@ export const useTimerStore = defineStore('timer', () => {
   let unsubscribeIdle: (() => void) | null = null
 
   async function init(): Promise<void> {
-    snapshot.value = await window.desktop.timer.getSnapshot()
+    await refresh()
     idlePrompt.value = await window.desktop.timer.getPendingIdlePrompt()
 
     unsubscribeChanged = window.desktop.timer.onChanged((next) => {
-      snapshot.value = next
+      snapshots.value = next
     })
     unsubscribeIdle = window.desktop.timer.onIdleDetected((payload) => {
       idlePrompt.value = payload
@@ -34,49 +34,56 @@ export const useTimerStore = defineStore('timer', () => {
     if (tickHandle) window.clearInterval(tickHandle)
   }
 
-  const isRunning = computed(() => snapshot.value !== null)
-  const isPaused = computed(() => snapshot.value?.isPaused ?? false)
+  const isRunning = computed(() => snapshots.value.length > 0)
+  const elapsedSecondsById = computed<Record<string, number>>(() =>
+    Object.fromEntries(
+      snapshots.value.map((snapshot) => [
+        snapshot.timer.id,
+        computeElapsedSeconds({
+          startedAt: snapshot.timer.startedAt,
+          accumulatedPauseSeconds: snapshot.timer.accumulatedPauseSeconds,
+          pausedAt: snapshot.timer.pausedAt,
+          now: now.value
+        })
+      ])
+    )
+  )
+  const totalElapsedSeconds = computed(() =>
+    Object.values(elapsedSecondsById.value).reduce((sum, seconds) => sum + seconds, 0)
+  )
 
-  /** Always re-derived from timestamps on each tick, never incremented. */
-  const elapsedSeconds = computed(() => {
-    const state = snapshot.value?.timer
-    if (!state) return 0
-    return computeElapsedSeconds({
-      startedAt: state.startedAt,
-      accumulatedPauseSeconds: state.accumulatedPauseSeconds,
-      pausedAt: state.pausedAt,
-      now: now.value
-    })
-  })
+  function elapsedSeconds(timerId: string): number {
+    return elapsedSecondsById.value[timerId] ?? 0
+  }
+
+  async function refresh(): Promise<void> {
+    snapshots.value = await window.desktop.timer.getSnapshots()
+  }
 
   async function start(params: {
     projectId: string
     taskId?: string | null
     description?: string | null
-  }): Promise<void> {
-    snapshot.value = await window.desktop.timer.start(params)
+  }): Promise<RunningTimerSnapshot> {
+    const snapshot = await window.desktop.timer.start(params)
+    await refresh()
+    return snapshot
   }
 
-  async function stop(): Promise<TimeEntry | null> {
-    const entry = await window.desktop.timer.stop()
-    snapshot.value = null
+  async function stop(timerId: string): Promise<TimeEntry | null> {
+    const entry = await window.desktop.timer.stop(timerId)
+    await refresh()
     return entry
   }
 
-  async function pause(): Promise<void> {
-    snapshot.value = await window.desktop.timer.pause()
+  async function pause(timerId: string): Promise<void> {
+    await window.desktop.timer.pause(timerId)
+    await refresh()
   }
 
-  async function resume(): Promise<void> {
-    snapshot.value = await window.desktop.timer.resume()
-  }
-
-  async function switchTask(taskId: string): Promise<void> {
-    snapshot.value = await window.desktop.timer.switchTask(taskId)
-  }
-
-  async function switchProject(projectId: string): Promise<void> {
-    snapshot.value = await window.desktop.timer.switchProject(projectId)
+  async function resume(timerId: string): Promise<void> {
+    await window.desktop.timer.resume(timerId)
+    await refresh()
   }
 
   async function resolveIdle(resolution: IdleResolution): Promise<void> {
@@ -85,19 +92,19 @@ export const useTimerStore = defineStore('timer', () => {
   }
 
   return {
-    snapshot,
+    snapshots,
     idlePrompt,
     isRunning,
-    isPaused,
+    elapsedSecondsById,
+    totalElapsedSeconds,
     elapsedSeconds,
+    refresh,
     init,
     dispose,
     start,
     stop,
     pause,
     resume,
-    switchTask,
-    switchProject,
     resolveIdle
   }
 })

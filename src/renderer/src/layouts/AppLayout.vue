@@ -14,6 +14,7 @@ import {
   Settings as SettingsIcon,
   Square,
   Table2,
+  Timer,
   PanelLeftClose,
   PanelLeftOpen
 } from '@lucide/vue'
@@ -64,6 +65,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 const navItems = [
   { name: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { name: 'timers', label: 'Timers', icon: Timer },
   { name: 'timeline', label: 'Timeline', icon: Clock },
   { name: 'timesheet', label: 'Timesheet', icon: Table2 },
   { name: 'reports', label: 'Reports', icon: ChartColumn }
@@ -83,16 +85,18 @@ async function startFreeTimer(): Promise<void> {
   await timerStore.start({ projectId: projectsStore.currentProjectId })
 }
 
-async function stopTimer(): Promise<void> {
-  const entry = await timerStore.stop()
+async function stopTimer(timerId: string): Promise<void> {
+  const entry = await timerStore.stop(timerId)
   if (entry) {
     uiStore.pushToast({ message: `Saved ${formatDurationSpaced(entry.durationSeconds)}`, timeoutMs: 4000 })
   }
   await refreshTodayForCurrentProject()
 }
 
-function goToProject(id: string): void {
-  router.push({ name: 'project-detail', params: { id } })
+async function goToProject(id: string): Promise<void> {
+  await projectsStore.setCurrent(id)
+  await refreshTodayForCurrentProject()
+  await router.push({ name: 'project-detail', params: { id } })
 }
 
 const hasProjects = computed(() => projectsStore.activeProjects.length > 0)
@@ -163,42 +167,57 @@ const hasProjects = computed(() => projectsStore.activeProjects.length > 0)
         </div>
       </div>
 
-      <!-- Active timer / start button -->
+      <!-- Active timers / start button -->
       <div class="px-3 pb-3">
-        <div v-if="timerStore.isRunning" class="rounded-lg border border-primary/30 bg-primary/10 p-3">
-          <p v-if="!uiStore.sidebarCollapsed" class="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary">
-            <span class="h-1.5 w-1.5 rounded-full bg-primary tt-pulse" />
-            Tracking
-          </p>
-          <template v-if="!uiStore.sidebarCollapsed">
-            <p class="truncate text-sm font-medium">{{ timerStore.snapshot?.project.name }}</p>
-            <p v-if="timerStore.snapshot?.task" class="truncate text-xs text-base-content/60">
-              {{ timerStore.snapshot?.task.name }}
-            </p>
-            <p class="mt-1 font-mono text-lg font-semibold tabular-nums">
-              {{ formatDurationClock(timerStore.elapsedSeconds) }}
-            </p>
-            <div class="mt-2 flex gap-1.5">
-              <button
-                class="btn btn-xs flex-1"
-                @click="timerStore.isPaused ? timerStore.resume() : timerStore.pause()"
-              >
-                <Pause v-if="!timerStore.isPaused" :size="12" />
-                <Play v-else :size="12" />
-                {{ timerStore.isPaused ? 'Resume' : 'Pause' }}
-              </button>
-              <button class="btn btn-xs btn-error flex-1" @click="stopTimer">
-                <Square :size="12" /> Stop
-              </button>
-            </div>
-          </template>
-          <button v-else class="btn btn-xs btn-error btn-square" @click="stopTimer">
-            <Square :size="12" />
-          </button>
+        <p
+          v-if="timerStore.isRunning && !uiStore.sidebarCollapsed"
+          class="flex items-center gap-1.5 px-1 text-[11px] font-semibold uppercase tracking-wider text-primary"
+        >
+          <span class="h-1.5 w-1.5 rounded-full bg-primary tt-pulse" />
+          {{ timerStore.snapshots.length }} active {{ timerStore.snapshots.length === 1 ? 'timer' : 'timers' }}
+        </p>
+        <div v-if="timerStore.isRunning" class="mt-2 max-h-[42vh] space-y-2 overflow-y-auto pr-1">
+          <div
+            v-for="snapshot in timerStore.snapshots"
+            :key="snapshot.timer.id"
+            class="rounded-lg border border-base-300 border-l-[3px] bg-base-100 p-3 shadow-sm"
+            :class="snapshot.isPaused ? 'opacity-65' : ''"
+            :style="{ borderLeftColor: snapshot.project.color }"
+            :title="uiStore.sidebarCollapsed ? `${snapshot.project.name} — ${snapshot.task?.name ?? 'No task'}` : undefined"
+          >
+            <template v-if="!uiStore.sidebarCollapsed">
+              <div class="flex items-center gap-2">
+                <span class="h-2 w-2 shrink-0 rounded-full" :style="{ backgroundColor: snapshot.project.color }" />
+                <p class="truncate text-sm font-medium">{{ snapshot.project.name }}</p>
+              </div>
+              <p class="mt-0.5 truncate pl-4 text-xs text-base-content/60">
+                {{ snapshot.task?.name ?? 'No task' }}
+              </p>
+              <p class="mt-1 font-mono text-lg font-semibold tabular-nums">
+                {{ formatDurationClock(timerStore.elapsedSeconds(snapshot.timer.id)) }}
+              </p>
+              <div class="mt-2 flex gap-1.5">
+                <button
+                  class="btn btn-xs flex-1"
+                  @click="snapshot.isPaused ? timerStore.resume(snapshot.timer.id) : timerStore.pause(snapshot.timer.id)"
+                >
+                  <Pause v-if="!snapshot.isPaused" :size="12" />
+                  <Play v-else :size="12" />
+                  {{ snapshot.isPaused ? 'Resume' : 'Pause' }}
+                </button>
+                <button class="btn btn-xs btn-error flex-1" @click="stopTimer(snapshot.timer.id)">
+                  <Square :size="12" /> Stop
+                </button>
+              </div>
+            </template>
+            <button v-else class="btn btn-xs btn-error btn-square" @click="stopTimer(snapshot.timer.id)">
+              <Square :size="12" />
+            </button>
+          </div>
         </div>
-        <button v-else class="btn btn-primary btn-sm w-full gap-1.5" @click="startFreeTimer">
+        <button class="btn btn-primary btn-sm mt-2 w-full gap-1.5" @click="startFreeTimer">
           <Play :size="14" />
-          <span v-if="!uiStore.sidebarCollapsed">Start timer</span>
+          <span v-if="!uiStore.sidebarCollapsed">{{ timerStore.isRunning ? 'Start another timer' : 'Start timer' }}</span>
         </button>
       </div>
 
