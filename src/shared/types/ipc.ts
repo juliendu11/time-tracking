@@ -28,6 +28,9 @@ import type {
   Tag,
   TagInput,
   Task,
+  TaskFolder,
+  TaskFolderInput,
+  TaskFolderUpdate,
   TaskInput,
   TaskUpdate,
   TimeEntry,
@@ -62,6 +65,12 @@ export interface DesktopApi {
     create(input: TaskInput): Promise<Task>
     update(id: string, update: TaskUpdate): Promise<Task>
     archive(id: string): Promise<Task>
+    delete(id: string): Promise<void>
+  }
+  taskFolders: {
+    listByProject(projectId: string): Promise<TaskFolder[]>
+    create(input: TaskFolderInput): Promise<TaskFolder>
+    update(id: string, update: TaskFolderUpdate): Promise<TaskFolder>
     delete(id: string): Promise<void>
   }
   timeEntries: {
@@ -151,6 +160,11 @@ export const IPC_CHANNELS = {
   tasksUpdate: 'tasks:update',
   tasksArchive: 'tasks:archive',
   tasksDelete: 'tasks:delete',
+
+  taskFoldersListByProject: 'taskFolders:listByProject',
+  taskFoldersCreate: 'taskFolders:create',
+  taskFoldersUpdate: 'taskFolders:update',
+  taskFoldersDelete: 'taskFolders:delete',
 
   timeEntriesListInRange: 'timeEntries:listInRange',
   timeEntriesListRecent: 'timeEntries:listRecent',

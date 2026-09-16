@@ -1,10 +1,12 @@
 import type Database from 'better-sqlite3'
 import migration0001 from './migrations/0001_init.sql?raw'
 import migration0002 from './migrations/0002_multiple_active_timers.sql?raw'
+import migration0003 from './migrations/0003_task_folders.sql?raw'
+import migration0004 from './migrations/0004_task_folder_assignments.sql?raw'
 
 interface Migration {
-  name: string
-  sql: string
+    name: string
+    sql: string
 }
 
 /**
@@ -13,37 +15,52 @@ interface Migration {
  * appended here — never edit an already-shipped migration's SQL.
  */
 const MIGRATIONS: Migration[] = [
-  { name: '0001_init', sql: migration0001 },
-  { name: '0002_multiple_active_timers', sql: migration0002 }
+    {name: '0001_init', sql: migration0001},
+    {name: '0002_multiple_active_timers', sql: migration0002},
+    {name: '0003_task_folders', sql: migration0003},
+    {name: '0002_task_folders', sql: migration0002},
+    {name: '0004_task_folder_assignments', sql: migration0004}
 ]
 
 export function runMigrations(db: Database.Database): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS _migrations (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      applied_at TEXT NOT NULL
-    );
-  `)
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS _migrations
+        (
+            id
+            INTEGER
+            PRIMARY
+            KEY
+            AUTOINCREMENT,
+            name
+            TEXT
+            NOT
+            NULL
+            UNIQUE,
+            applied_at
+            TEXT
+            NOT
+            NULL
+        );
+    `)
 
-  const applied = new Set(
-    db
-      .prepare<[], { name: string }>('SELECT name FROM _migrations')
-      .all()
-      .map((row) => row.name)
-  )
+    const applied = new Set(
+        db
+            .prepare<[], { name: string }>('SELECT name FROM _migrations')
+            .all()
+            .map((row) => row.name)
+    )
 
-  for (const migration of MIGRATIONS) {
-    if (applied.has(migration.name)) continue
+    for (const migration of MIGRATIONS) {
+        if (applied.has(migration.name)) continue
 
-    const applyMigration = db.transaction(() => {
-      db.exec(migration.sql)
-      db.prepare('INSERT INTO _migrations (name, applied_at) VALUES (?, ?)').run(
-        migration.name,
-        new Date().toISOString()
-      )
-    })
+        const applyMigration = db.transaction(() => {
+            db.exec(migration.sql)
+            db.prepare('INSERT INTO _migrations (name, applied_at) VALUES (?, ?)').run(
+                migration.name,
+                new Date().toISOString()
+            )
+        })
 
-    applyMigration()
-  }
+        applyMigration()
+    }
 }

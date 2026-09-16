@@ -1,15 +1,21 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
-import type { Task, TaskPriority } from '@shared/types/domain'
+import type { Task, TaskFolder, TaskPriority } from '@shared/types/domain'
 import { useTasksStore } from '../../stores/tasks'
 
-const props = defineProps<{ projectId: string; task?: Task }>()
+const props = defineProps<{
+  projectId: string
+  task?: Task
+  folders?: TaskFolder[]
+  initialFolderId?: string | null
+}>()
 const emit = defineEmits<{ close: [] }>()
 
 const tasksStore = useTasksStore()
 
 const form = reactive({
   name: props.task?.name ?? '',
+  folderIds: props.task?.folderIds ?? (props.initialFolderId ? [props.initialFolderId] : []),
   description: props.task?.description ?? '',
   priority: (props.task?.priority ?? 'normal') as TaskPriority,
   estimatedHours: props.task?.estimatedMinutes ? props.task.estimatedMinutes / 60 : null
@@ -27,6 +33,8 @@ async function submit(): Promise<void> {
   try {
     const payload = {
       name: form.name.trim(),
+      // Electron's structured clone cannot serialize Vue's reactive array proxy.
+      folderIds: [...form.folderIds],
       description: form.description || null,
       priority: form.priority,
       estimatedMinutes: form.estimatedHours ? Math.round(form.estimatedHours * 60) : null
@@ -54,6 +62,36 @@ async function submit(): Promise<void> {
         <div>
           <label class="mb-1 block text-xs font-medium text-base-content/60">Name</label>
           <input v-model="form.name" class="input input-bordered input-sm w-full" placeholder="Task name" />
+        </div>
+        <div>
+          <div class="mb-1 flex items-center justify-between gap-2">
+            <span class="text-xs font-medium text-base-content/60">Folders</span>
+            <span v-if="form.folderIds.length > 0" class="text-[11px] text-base-content/40">
+              {{ form.folderIds.length }} selected
+            </span>
+          </div>
+          <div
+            v-if="folders?.length"
+            class="grid max-h-32 grid-cols-2 gap-1 overflow-y-auto rounded-lg border border-base-300 bg-base-200/30 p-1.5"
+          >
+            <label
+              v-for="folder in folders"
+              :key="folder.id"
+              class="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-base-100"
+              :class="form.folderIds.includes(folder.id) ? 'bg-primary/10 text-primary' : ''"
+            >
+              <input
+                v-model="form.folderIds"
+                type="checkbox"
+                class="checkbox checkbox-primary checkbox-xs"
+                :value="folder.id"
+              />
+              <span class="truncate">{{ folder.name }}</span>
+            </label>
+          </div>
+          <p v-else class="rounded-lg border border-dashed border-base-300 px-3 py-2 text-xs text-base-content/40">
+            No folders in this project yet.
+          </p>
         </div>
         <div>
           <label class="mb-1 block text-xs font-medium text-base-content/60">Description</label>

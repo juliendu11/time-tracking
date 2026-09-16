@@ -11,6 +11,8 @@ import type {
   TimeEntryInput,
   TimeEntryUpdate,
   TaskInput,
+  TaskFolderInput,
+  TaskFolderUpdate,
   TaskUpdate,
   TimeEntry,
   WeekStartsOn
@@ -25,6 +27,8 @@ import {
   startTimerSchema,
   tagInputSchema,
   taskInputSchema,
+  taskFolderInputSchema,
+  taskFolderUpdateSchema,
   taskUpdateSchema,
   timeEntryInputSchema,
   timeEntryUpdateSchema
@@ -56,8 +60,19 @@ function handle<Args extends unknown[], Result>(
 }
 
 export function registerIpcHandlers(context: AppContext, notifications: NotificationService): void {
-  const { projects, tasks, timeEntries, tags, settings, timer, reports, suggestions, search, backup } =
-    context
+  const {
+    projects,
+    tasks,
+    taskFolders,
+    timeEntries,
+    tags,
+    settings,
+    timer,
+    reports,
+    suggestions,
+    search,
+    backup
+  } = context
 
   // --- Projects ---------------------------------------------------------
   handle(IPC_CHANNELS.projectsList, (includeArchived?: boolean) =>
@@ -90,6 +105,18 @@ export function registerIpcHandlers(context: AppContext, notifications: Notifica
   )
   handle(IPC_CHANNELS.tasksArchive, (id: string) => tasks.archive(id))
   handle(IPC_CHANNELS.tasksDelete, (id: string) => tasks.delete(id))
+
+  // --- Task folders ---------------------------------------------------------
+  handle(IPC_CHANNELS.taskFoldersListByProject, (projectId: string) =>
+    taskFolders.listByProject(projectId)
+  )
+  handle(IPC_CHANNELS.taskFoldersCreate, (input: TaskFolderInput) =>
+    taskFolders.create(taskFolderInputSchema.parse(input))
+  )
+  handle(IPC_CHANNELS.taskFoldersUpdate, (id: string, update: TaskFolderUpdate) =>
+    taskFolders.update(id, taskFolderUpdateSchema.parse(update))
+  )
+  handle(IPC_CHANNELS.taskFoldersDelete, (id: string) => taskFolders.delete(id))
 
   // --- Time entries ---------------------------------------------------------
   handle(
