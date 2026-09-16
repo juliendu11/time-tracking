@@ -83,14 +83,14 @@ in main/preload/shared code, and `@renderer/*`, `@shared/*` (see
 ### The timer
 
 `TimerService` (`src/main/services/timer.service.ts`) is the single source
-of truth for the one active timer in the whole app, backed by a single-row
-`active_timer` table — not renderer state:
+of truth for all active timers in the app, backed by the `active_timer`
+table — not renderer state:
 
 - Elapsed time is always **derived from timestamps** (`startedAt`,
   `accumulatedPauseSeconds`, `pausedAt`) — never an incrementing counter —
   so it survives page navigation, app restarts, and sleep.
-- `start()` atomically stops any running timer (inside one SQLite
-  transaction) before starting the new one.
+- `start()` creates an independent timer. Pause, resume, and stop operations
+  target a timer ID and never alter the other active timers.
 - Idle time and sleep gaps never silently disappear: `IdleService` detects
   them and the renderer prompts **Remove idle time / Keep idle time / Split
   session** before anything is changed.
@@ -115,7 +115,7 @@ of truth for the one active timer in the whole app, backed by a single-row
 
 Tests concentrate on logic where a bug would silently corrupt tracked time (`tests/unit/`, in-memory SQLite via
 `tests/helpers/setupDb.ts`):
-`TimerService` (start/stop/switch/pause/resume/restore/idle resolution),
+`TimerService` (start/stop/pause/resume/restore/idle resolution),
 day-boundary and DST-safe time splitting (`src/shared/utils/time.ts`),
 duration parsing/formatting (`src/shared/utils/duration.ts`), and report
 aggregation (dashboard totals, heatmap splitting, grouping, weekly

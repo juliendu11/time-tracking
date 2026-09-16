@@ -1,5 +1,6 @@
 import type Database from 'better-sqlite3'
 import migration0001 from './migrations/0001_init.sql?raw'
+import migration0002 from './migrations/0002_multiple_active_timers.sql?raw'
 
 interface Migration {
   name: string
@@ -11,7 +12,10 @@ interface Migration {
  * `_migrations` table, inside its own transaction. New migrations must be
  * appended here — never edit an already-shipped migration's SQL.
  */
-const MIGRATIONS: Migration[] = [{ name: '0001_init', sql: migration0001 }]
+const MIGRATIONS: Migration[] = [
+  { name: '0001_init', sql: migration0001 },
+  { name: '0002_multiple_active_timers', sql: migration0002 }
+]
 
 export function runMigrations(db: Database.Database): void {
   db.exec(`

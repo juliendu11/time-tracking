@@ -149,7 +149,7 @@ export interface AppSettings {
 
 export type AppSettingsUpdate = Partial<AppSettings>
 
-/** The single active timer in the whole application, persisted in SQLite. */
+/** One of the active timers in the application, persisted in SQLite. */
 export interface ActiveTimerState {
   id: string
   projectId: string
@@ -176,7 +176,8 @@ export interface RunningTimerSnapshot {
 export interface IdlePromptPayload {
   idleStartedAt: string
   idleSeconds: number
-  timer: ActiveTimerState
+  /** Timers that were running when the idle period was detected. */
+  timers: ActiveTimerState[]
 }
 
 export type IdleResolution = 'discard' | 'keep' | 'split'

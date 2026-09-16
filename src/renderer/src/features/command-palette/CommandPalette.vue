@@ -12,6 +12,7 @@ import {
   Square,
   Sun,
   Table2,
+  Timer,
   type LucideIcon
 } from '@lucide/vue'
 import type { SearchResultItem, SmartSuggestion } from '@shared/types/domain'
@@ -80,6 +81,7 @@ async function goTo(name: string): Promise<void> {
 const staticActions = computed<PaletteItem[]>(() => {
   const items: Array<PaletteItem | null> = [
   { id: 'nav-dashboard', label: 'Go to Dashboard', icon: LayoutDashboard, run: () => goTo('dashboard') },
+  { id: 'nav-timers', label: 'Go to Timers', icon: Timer, run: () => goTo('timers') },
   { id: 'nav-timeline', label: 'Go to Timeline', icon: Clock, run: () => goTo('timeline') },
   { id: 'nav-timesheet', label: 'Go to Timesheet', icon: Table2, run: () => goTo('timesheet') },
   { id: 'nav-reports', label: 'Go to Reports', icon: ChartColumn, run: () => goTo('reports') },
@@ -106,10 +108,10 @@ const staticActions = computed<PaletteItem[]>(() => {
   timerStore.isRunning
     ? {
         id: 'stop-timer',
-        label: 'Stop timer',
+        label: `Stop all timers (${timerStore.snapshots.length})`,
         icon: Square,
         run: async () => {
-          await timerStore.stop()
+          await Promise.all(timerStore.snapshots.map((snapshot) => timerStore.stop(snapshot.timer.id)))
           close()
         }
       }
@@ -141,8 +143,7 @@ const suggestionItems = computed<PaletteItem[]>(() =>
     hint: 'Start',
     icon: FolderKanban,
     run: async () => {
-      if (s.taskId) await timerStore.switchTask(s.taskId)
-      else await timerStore.switchProject(s.projectId)
+      await timerStore.start({ projectId: s.projectId, taskId: s.taskId })
       close()
     }
   }))
@@ -159,7 +160,8 @@ const searchItems = computed<PaletteItem[]>(() =>
         await projectsStore.setCurrent(r.id)
         await router.push({ name: 'project-detail', params: { id: r.id } })
       } else if (r.kind === 'task') {
-        await timerStore.switchTask(r.id)
+        const task = await window.desktop.tasks.get(r.id)
+        if (task) await timerStore.start({ projectId: task.projectId, taskId: task.id })
       }
       close()
     }

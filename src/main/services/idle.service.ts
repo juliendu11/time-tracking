@@ -35,9 +35,9 @@ export class IdleService {
 
   private poll(): void {
     const settings = this.settings.get()
-    const snapshot = this.timer.getSnapshot()
+    const hasRunningTimer = this.timer.getSnapshots().some((snapshot) => !snapshot.isPaused)
 
-    if (!settings.idleDetectionEnabled || !snapshot || snapshot.isPaused) {
+    if (!settings.idleDetectionEnabled || !hasRunningTimer) {
       this.trackedIdleStartMs = null
       return
     }

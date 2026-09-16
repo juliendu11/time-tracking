@@ -13,7 +13,7 @@ const LONG_SESSION_THRESHOLD_SECONDS = 3 * 3600
 export class NotificationService {
   private pollHandle: NodeJS.Timeout | null = null
   private dailyGoalNotifiedForDate: string | null = null
-  private longSessionNotifiedForTimerId: string | null = null
+  private readonly longSessionNotifiedTimerIds = new Set<string>()
 
   constructor(private readonly context: AppContext) {}
 
@@ -55,19 +55,23 @@ export class NotificationService {
       }
     }
 
-    const snapshot = this.context.timer.getSnapshot()
-    if (
-      snapshot &&
-      !snapshot.isPaused &&
-      snapshot.elapsedSeconds >= LONG_SESSION_THRESHOLD_SECONDS &&
-      this.longSessionNotifiedForTimerId !== snapshot.timer.id
-    ) {
-      this.longSessionNotifiedForTimerId = snapshot.timer.id
-      this.notify(
-        'Still tracking',
-        `${snapshot.project.name} has been running for ${formatDurationSpaced(snapshot.elapsedSeconds)}.`
-      )
+    const snapshots = this.context.timer.getSnapshots()
+    const activeIds = new Set(snapshots.map((snapshot) => snapshot.timer.id))
+    for (const notifiedId of this.longSessionNotifiedTimerIds) {
+      if (!activeIds.has(notifiedId)) this.longSessionNotifiedTimerIds.delete(notifiedId)
     }
-    if (!snapshot) this.longSessionNotifiedForTimerId = null
+    for (const snapshot of snapshots) {
+      if (
+        !snapshot.isPaused &&
+        snapshot.elapsedSeconds >= LONG_SESSION_THRESHOLD_SECONDS &&
+        !this.longSessionNotifiedTimerIds.has(snapshot.timer.id)
+      ) {
+        this.longSessionNotifiedTimerIds.add(snapshot.timer.id)
+        this.notify(
+          'Still tracking',
+          `${snapshot.project.name} has been running for ${formatDurationSpaced(snapshot.elapsedSeconds)}.`
+        )
+      }
+    }
   }
 }

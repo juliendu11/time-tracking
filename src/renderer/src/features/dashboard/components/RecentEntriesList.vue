@@ -32,8 +32,7 @@ function timeRange(entry: TimeEntry): string {
 }
 
 async function restart(entry: TimeEntry): Promise<void> {
-  if (entry.taskId) await timerStore.switchTask(entry.taskId)
-  else await timerStore.switchProject(entry.projectId)
+  await timerStore.start({ projectId: entry.projectId, taskId: entry.taskId })
   emit('changed')
 }
 

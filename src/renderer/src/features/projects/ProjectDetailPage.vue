@@ -25,6 +25,7 @@ const editingTask = ref<Task | null>(null)
 
 async function load(): Promise<void> {
   if (projectsStore.projects.length === 0) await projectsStore.load()
+  await projectsStore.setCurrent(props.id)
   project.value = projectsStore.byId(props.id) ?? (await window.desktop.projects.get(props.id))
   stats.value = await window.desktop.projects.getStats(props.id)
   await tasksStore.loadForProject(props.id, true)
@@ -76,19 +77,19 @@ async function refreshStats(): Promise<void> {
  * timerStore's timestamp-derived clock — never from a local counter.
  */
 const liveTaskDurations = computed(() => {
-  const activeTaskId = timerStore.snapshot?.task?.id ?? null
-  if (!activeTaskId) return taskDurations.value
-  return {
-    ...taskDurations.value,
-    [activeTaskId]: (taskDurations.value[activeTaskId] ?? 0) + timerStore.elapsedSeconds
+  const durations = { ...taskDurations.value }
+  for (const snapshot of timerStore.snapshots) {
+    if (!snapshot.task) continue
+    durations[snapshot.task.id] =
+      (durations[snapshot.task.id] ?? 0) + timerStore.elapsedSeconds(snapshot.timer.id)
   }
+  return durations
 })
 
-// A timer starting, stopping or switching task means a TimeEntry was just
-// created/finalised in the DB — refresh the durations and stats that
-// depend on it so this page never needs a manual revisit to catch up.
+// A changed timer ID means the live duration composition changed; stopping
+// one may also have finalised a TimeEntry. Refresh persisted totals and stats.
 watch(
-    () => timerStore.snapshot?.timer.id ?? null,
+    () => timerStore.snapshots.map((snapshot) => snapshot.timer.id).join(','),
     (newId, oldId) => {
       if (newId === oldId) return
       void refreshDurations()
@@ -97,11 +98,11 @@ watch(
 )
 
 async function startTask(task: Task): Promise<void> {
-  await timerStore.switchTask(task.id)
+  await timerStore.start({ projectId: task.projectId, taskId: task.id })
 }
 
 async function startFreeTimer(): Promise<void> {
-  await timerStore.switchProject(props.id)
+  await timerStore.start({ projectId: props.id })
 }
 
 async function toggleComplete(task: Task): Promise<void> {
@@ -196,7 +197,7 @@ const weekProgress = computed(() => {
           :key="task.id"
           :task="task"
           :duration-seconds="liveTaskDurations[task.id] ?? 0"
-          :is-active="timerStore.snapshot?.task?.id === task.id"
+          :is-active="timerStore.snapshots.some((snapshot) => snapshot.task?.id === task.id)"
           @start="startTask(task)"
           @toggle-complete="toggleComplete(task)"
           @toggle-favorite="toggleFavorite(task)"

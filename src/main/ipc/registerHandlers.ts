@@ -125,17 +125,15 @@ export function registerIpcHandlers(context: AppContext, notifications: Notifica
   handle(IPC_CHANNELS.tagsDelete, (id: string) => tags.delete(id))
 
   // --- Timer ------------------------------------------------------------------
-  handle(IPC_CHANNELS.timerGetSnapshot, () => timer.getSnapshot())
+  handle(IPC_CHANNELS.timerGetSnapshots, () => timer.getSnapshots())
   handle(
     IPC_CHANNELS.timerStart,
     (params: { projectId: string; taskId?: string | null; description?: string | null }) =>
       timer.start(startTimerSchema.parse(params))
   )
-  handle(IPC_CHANNELS.timerStop, () => timer.stop())
-  handle(IPC_CHANNELS.timerPause, () => timer.pause())
-  handle(IPC_CHANNELS.timerResume, () => timer.resume())
-  handle(IPC_CHANNELS.timerSwitchTask, (taskId: string) => timer.switchTask(taskId))
-  handle(IPC_CHANNELS.timerSwitchProject, (projectId: string) => timer.switchProject(projectId))
+  handle(IPC_CHANNELS.timerStop, (timerId: string) => timer.stop(timerId))
+  handle(IPC_CHANNELS.timerPause, (timerId: string) => timer.pause(timerId))
+  handle(IPC_CHANNELS.timerResume, (timerId: string) => timer.resume(timerId))
   handle(IPC_CHANNELS.timerGetPendingIdlePrompt, () => timer.getPendingIdlePrompt())
   handle(IPC_CHANNELS.timerResolveIdlePrompt, (resolution: IdleResolution) =>
     timer.resolveIdlePrompt(idleResolutionSchema.parse(resolution))

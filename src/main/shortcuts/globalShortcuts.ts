@@ -5,9 +5,10 @@ import type { AppContext } from '@main/context'
 let registeredAccelerator: string | null = null
 
 function toggleLastTimer(context: AppContext): void {
-  const snapshot = context.timer.getSnapshot()
-  if (snapshot) {
-    context.timer.stop()
+  const snapshots = context.timer.getSnapshots()
+  const latest = snapshots.at(-1)
+  if (latest) {
+    context.timer.stop(latest.timer.id)
     return
   }
 
