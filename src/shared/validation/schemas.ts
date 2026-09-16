@@ -25,8 +25,17 @@ export const projectUpdateSchema = projectInputSchema.partial()
 export const taskStatusSchema = z.enum(['todo', 'in_progress', 'done', 'archived'])
 export const taskPrioritySchema = z.enum(['low', 'normal', 'high', 'urgent'])
 
+export const taskFolderInputSchema = z.object({
+  projectId: z.string().min(1),
+  name: z.string().trim().min(1, 'Folder name is required').max(100),
+  position: z.number().int().nonnegative().optional()
+})
+
+export const taskFolderUpdateSchema = taskFolderInputSchema.omit({ projectId: true }).partial()
+
 export const taskInputSchema = z.object({
   projectId: z.string().min(1),
+  folderIds: z.array(z.string().min(1)).optional(),
   name: z.string().trim().min(1, 'Task name is required').max(200),
   description: z.string().max(2000).nullable().optional(),
   status: taskStatusSchema.optional(),
