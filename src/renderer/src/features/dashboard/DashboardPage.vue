@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import type {
   AdditionalMetrics,
   DailyBucket,
@@ -11,6 +11,7 @@ import type {
   TopTaskEntry
 } from '@shared/types/domain'
 import { useProjectsStore } from '../../stores/projects'
+import { useUiStore } from '../../stores/ui'
 import DashboardHeader from './components/DashboardHeader.vue'
 import RecentEntriesList from './components/RecentEntriesList.vue'
 import LastSevenDaysChart from './components/LastSevenDaysChart.vue'
@@ -22,6 +23,7 @@ import FocusScoreCard from './components/FocusScoreCard.vue'
 import DayEntriesDrawer from './components/DayEntriesDrawer.vue'
 
 const projectsStore = useProjectsStore()
+const uiStore = useUiStore()
 
 const summary = ref<DashboardSummary | null>(null)
 const recentEntries = ref<TimeEntry[]>([])
@@ -90,6 +92,7 @@ function selectDistributionProject(projectId: string): void {
 }
 
 onMounted(loadAll)
+watch(() => uiStore.dataVersion, loadAll)
 defineExpose({ loadAll })
 </script>
 

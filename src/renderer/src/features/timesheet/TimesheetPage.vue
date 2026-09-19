@@ -4,8 +4,10 @@ import { ChevronLeft, ChevronRight, Copy } from '@lucide/vue'
 import type { TimeEntry, TimesheetWeek } from '@shared/types/domain'
 import { formatDurationHm, parseDurationInput } from '@shared/utils/duration'
 import { useSettingsStore } from '../../stores/settings'
+import { useUiStore } from '../../stores/ui'
 
 const settingsStore = useSettingsStore()
+const uiStore = useUiStore()
 
 function startOfWeek(date: Date, weekStartsOn: 0 | 1): Date {
   const d = new Date(date)
@@ -36,6 +38,7 @@ async function load(): Promise<void> {
 
 onMounted(load)
 watch(anchorDate, load)
+watch(() => uiStore.dataVersion, load)
 
 function shiftWeek(delta: number): void {
   const next = new Date(anchorDate.value)

@@ -1,6 +1,7 @@
 import {computed, ref} from 'vue'
 import {defineStore} from 'pinia'
 import {computeElapsedSeconds} from '@shared/utils/time'
+import {useUiStore} from './ui'
 import type {IdlePromptPayload, IdleResolution, RunningTimerSnapshot, TimeEntry} from '@shared/types/domain'
 
 export const useTimerStore = defineStore('timer', () => {
@@ -17,7 +18,9 @@ export const useTimerStore = defineStore('timer', () => {
         idlePrompt.value = await window.desktop.timer.getPendingIdlePrompt()
 
         unsubscribeChanged = window.desktop.timer.onChanged((next) => {
+            const stopped = next.length < snapshots.value.length
             snapshots.value = next
+            if (stopped) useUiStore().notifyDataChanged()
         })
         unsubscribeIdle = window.desktop.timer.onIdleDetected((payload) => {
             idlePrompt.value = payload
@@ -73,6 +76,7 @@ export const useTimerStore = defineStore('timer', () => {
     async function stop(timerId: string): Promise<TimeEntry | null> {
         const entry = await window.desktop.timer.stop(timerId)
         await refresh()
+        useUiStore().notifyDataChanged()
         return entry
     }
 

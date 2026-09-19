@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Archive, ArchiveRestore, Plus, Search, Star, Trash2 } from '@lucide/vue'
 import type { Project } from '@shared/types/domain'
@@ -32,6 +32,8 @@ async function loadStats(): Promise<void> {
   )
   projectStats.value = Object.fromEntries(entries)
 }
+
+watch(() => uiStore.dataVersion, loadStats)
 
 const filteredProjects = computed(() => {
   let list = projectsStore.projects
