@@ -4,9 +4,11 @@ import { ChevronLeft, ChevronRight } from '@lucide/vue'
 import type { TimeEntry } from '@shared/types/domain'
 import { formatDurationCompact } from '@shared/utils/duration'
 import { useProjectsStore } from '../../stores/projects'
+import { useUiStore } from '../../stores/ui'
 import ManualEntryModal from '../timer/ManualEntryModal.vue'
 
 const projectsStore = useProjectsStore()
+const uiStore = useUiStore()
 const currentDate = ref(new Date())
 const entries = ref<TimeEntry[]>([])
 const editingEntry = ref<TimeEntry | null>(null)
@@ -29,6 +31,7 @@ async function load(): Promise<void> {
 
 onMounted(load)
 watch(currentDate, load)
+watch(() => uiStore.dataVersion, load)
 
 function shiftDay(delta: number): void {
   const next = new Date(currentDate.value)

@@ -4,10 +4,12 @@ import type { ReportGroupBy, ReportResult } from '@shared/types/domain'
 import { formatDurationSpaced } from '@shared/utils/duration'
 import { useProjectsStore } from '../../stores/projects'
 import { useTagsStore } from '../../stores/tags'
+import { useUiStore } from '../../stores/ui'
 import BaseCheckBox from '@renderer/components/BaseCheckBox.vue'
 
 const projectsStore = useProjectsStore()
 const tagsStore = useTagsStore()
+const uiStore = useUiStore()
 
 type Preset = 'this-week' | 'last-week' | 'this-month' | 'last-30' | 'custom'
 
@@ -89,6 +91,7 @@ onMounted(async () => {
   await runReport()
 })
 
+watch(() => uiStore.dataVersion, runReport)
 watch([preset, groupBy, projectFilter, tagFilter, onlyWithoutTask, compare], runReport)
 watch([customStart, customEnd], () => {
   if (preset.value === 'custom') runReport()

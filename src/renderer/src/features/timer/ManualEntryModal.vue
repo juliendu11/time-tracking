@@ -103,6 +103,7 @@ async function submit(): Promise<void> {
     } else {
       await window.desktop.timeEntries.create(payload)
     }
+    uiStore.notifyDataChanged()
     uiStore.pushToast({ message: `Saved ${formatDurationSpaced(durationSeconds.value)}` })
     emit('close')
   } catch (e) {

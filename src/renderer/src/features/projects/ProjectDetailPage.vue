@@ -16,6 +16,7 @@ import {useProjectsStore} from '../../stores/projects'
 import {useTaskFoldersStore} from '../../stores/taskFolders'
 import {useTasksStore} from '../../stores/tasks'
 import {useTimerStore} from '../../stores/timer'
+import {useUiStore} from '../../stores/ui'
 import TaskRow from '../tasks/TaskRow.vue'
 import TaskFormModal from '../tasks/TaskFormModal.vue'
 import TaskFolderFormModal from '../tasks/TaskFolderFormModal.vue'
@@ -26,6 +27,7 @@ const projectsStore = useProjectsStore()
 const tasksStore = useTasksStore()
 const taskFoldersStore = useTaskFoldersStore()
 const timerStore = useTimerStore()
+const uiStore = useUiStore()
 
 const project = ref<Project | null>(null)
 const stats = ref<ProjectStats | null>(null)
@@ -51,6 +53,7 @@ async function load(): Promise<void> {
 
 onMounted(load)
 watch(() => props.id, load)
+watch(() => uiStore.dataVersion, load)
 
 const tasks = computed(() => tasksStore.tasksFor(props.id))
 const taskFolders = computed(() => taskFoldersStore.foldersFor(props.id))
