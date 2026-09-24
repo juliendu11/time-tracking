@@ -1,4 +1,5 @@
 import {
+  type AnySQLiteColumn,
   index,
   integer,
   primaryKey,
@@ -56,9 +57,15 @@ export const tasks = sqliteTable(
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
     completedAt: text('completed_at'),
-    archivedAt: text('archived_at')
+    archivedAt: text('archived_at'),
+    parentTaskId: text('parent_task_id').references((): AnySQLiteColumn => tasks.id, {
+      onDelete: 'set null'
+    })
   },
-  (table) => [index('idx_tasks_project_id').on(table.projectId)]
+  (table) => [
+    index('idx_tasks_project_id').on(table.projectId),
+    index('idx_tasks_parent_task_id').on(table.parentTaskId)
+  ]
 )
 
 export const taskFolderAssignments = sqliteTable(

@@ -35,11 +35,13 @@ const search = ref('')
 const statusFilter = ref<'all' | 'todo' | 'in_progress' | 'done'>('all')
 const sortBy = ref<'created' | 'priority' | 'name'>('created')
 const showTaskForm = ref(false)
-const initialTaskFolderId = ref<string | null>(null)
+const initialTaskFolderIds = ref<string[]>([])
+const initialParentTaskId = ref<string | null>(null)
 const editingTask = ref<Task | null>(null)
 const showFolderForm = ref(false)
 const editingFolder = ref<TaskFolder | null>(null)
 const collapsedFolderIds = ref<Set<string>>(new Set())
+const collapsedTaskIds = ref<Set<string>>(new Set())
 
 async function load(): Promise<void> {
   if (projectsStore.projects.length === 0) await projectsStore.load()
@@ -73,6 +75,50 @@ const filteredTasks = computed(() => {
   })
 })
 
+/** Done/total counts of each task's direct, non-archived subtasks. */
+const subtaskCounts = computed(() => {
+  const counts: Record<string, { done: number; total: number }> = {}
+  for (const task of tasks.value) {
+    if (!task.parentTaskId || task.status === 'archived') continue
+    const count = (counts[task.parentTaskId] ??= {done: 0, total: 0})
+    count.total++
+    if (task.status === 'done') count.done++
+  }
+  return counts
+})
+
+interface TaskTreeRow {
+  task: Task
+  depth: number
+}
+
+/**
+ * Flattens a group's tasks into depth-annotated rows. A task whose parent is
+ * not shown in the same group (other folder, filtered out) becomes a root.
+ */
+function toTreeRows(groupTasks: Task[]): TaskTreeRow[] {
+  const ids = new Set(groupTasks.map((task) => task.id))
+  const childrenByParent = new Map<string, Task[]>()
+  const roots: Task[] = []
+  for (const task of groupTasks) {
+    if (task.parentTaskId && ids.has(task.parentTaskId)) {
+      const siblings = childrenByParent.get(task.parentTaskId) ?? []
+      siblings.push(task)
+      childrenByParent.set(task.parentTaskId, siblings)
+    } else {
+      roots.push(task)
+    }
+  }
+  const rows: TaskTreeRow[] = []
+  const visit = (task: Task, depth: number): void => {
+    rows.push({task, depth})
+    if (collapsedTaskIds.value.has(task.id)) return
+    for (const child of childrenByParent.get(task.id) ?? []) visit(child, depth + 1)
+  }
+  for (const root of roots) visit(root, 0)
+  return rows
+}
+
 const taskGroups = computed(() => {
   const isFiltering = search.value.trim() !== '' || statusFilter.value !== 'all'
   let grouped: Array<{
@@ -91,7 +137,7 @@ const taskGroups = computed(() => {
   if (unfiled.length > 0 || (!isFiltering && taskFolders.value.length === 0)) {
     grouped.push({id: '', name: 'No folder', folder: null, tasks: unfiled})
   }
-  return grouped
+  return grouped.map((group) => ({...group, rows: toTreeRows(group.tasks)}))
 })
 
 const taskDurations = ref<Record<string, number>>({})
@@ -149,7 +195,22 @@ async function startFreeTimer(): Promise<void> {
 }
 
 async function toggleComplete(task: Task): Promise<void> {
-  await tasksStore.update(task.id, props.id, {status: task.status === 'done' ? 'todo' : 'done'})
+  try {
+    await tasksStore.update(task.id, props.id, {status: task.status === 'done' ? 'todo' : 'done'})
+  } catch (e) {
+    // Electron prefixes errors thrown by IPC handlers with the channel name.
+    const message = e instanceof Error
+        ? e.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
+        : 'Unable to update the task.'
+    uiStore.pushToast({message})
+  }
+}
+
+function toggleTaskCollapse(task: Task): void {
+  const next = new Set(collapsedTaskIds.value)
+  if (next.has(task.id)) next.delete(task.id)
+  else next.add(task.id)
+  collapsedTaskIds.value = next
 }
 
 async function toggleFavorite(task: Task): Promise<void> {
@@ -161,18 +222,34 @@ async function archiveTask(task: Task): Promise<void> {
 }
 
 async function removeTask(task: Task): Promise<void> {
-  if (!window.confirm(`Delete task "${task.name}"?`)) return
+  const subtaskCount = tasks.value.filter((t) => t.parentTaskId === task.id).length
+  const detail = subtaskCount === 0
+      ? ''
+      : ` Its ${subtaskCount} subtask${subtaskCount === 1 ? '' : 's'} will become top-level task${subtaskCount === 1 ? '' : 's'}.`
+  if (!window.confirm(`Delete task "${task.name}"?${detail}`)) return
   await tasksStore.remove(task.id, props.id)
 }
 
 function openTaskForm(folderId: string | null = null): void {
-  initialTaskFolderId.value = folderId
+  initialTaskFolderIds.value = folderId ? [folderId] : []
+  initialParentTaskId.value = null
+  showTaskForm.value = true
+}
+
+/** Subtasks start in their parent's folders so they appear nested under it. */
+function openSubtaskForm(parent: Task): void {
+  initialTaskFolderIds.value = [...parent.folderIds]
+  initialParentTaskId.value = parent.id
+  const next = new Set(collapsedTaskIds.value)
+  next.delete(parent.id)
+  collapsedTaskIds.value = next
   showTaskForm.value = true
 }
 
 function closeTaskForm(): void {
   showTaskForm.value = false
-  initialTaskFolderId.value = null
+  initialTaskFolderIds.value = []
+  initialParentTaskId.value = null
 }
 
 function toggleFolder(folderId: string): void {
@@ -313,13 +390,18 @@ const weekProgress = computed(() => {
 
           <div v-if="!group.folder || !collapsedFolderIds.has(group.id)" class="space-y-1.5">
             <TaskRow
-              v-for="task in group.tasks"
+              v-for="{ task, depth } in group.rows"
               :key="task.id"
               :task="task"
+              :depth="depth"
+              :subtasks="subtaskCounts[task.id]"
+              :collapsed="collapsedTaskIds.has(task.id)"
               :duration-seconds="liveTaskDurations[task.id] ?? 0"
               :is-active="timerStore.snapshots.some((snapshot) => snapshot.task?.id === task.id)"
               @start="startTask(task)"
               @toggle-complete="toggleComplete(task)"
+              @toggle-collapse="toggleTaskCollapse(task)"
+              @add-subtask="openSubtaskForm(task)"
               @toggle-favorite="toggleFavorite(task)"
               @edit="editingTask = task"
               @archive="archiveTask(task)"
@@ -353,7 +435,8 @@ const weekProgress = computed(() => {
       v-if="showTaskForm"
       :project-id="props.id"
       :folders="taskFolders"
-      :initial-folder-id="initialTaskFolderId"
+      :initial-folder-ids="initialTaskFolderIds"
+      :initial-parent-task-id="initialParentTaskId"
       @close="closeTaskForm"
     />
     <TaskFormModal

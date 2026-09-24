@@ -36,6 +36,7 @@ export const taskFolderUpdateSchema = taskFolderInputSchema.omit({ projectId: tr
 export const taskInputSchema = z.object({
   projectId: z.string().min(1),
   folderIds: z.array(z.string().min(1)).optional(),
+  parentTaskId: z.string().min(1).nullable().optional(),
   name: z.string().trim().min(1, 'Task name is required').max(200),
   description: z.string().max(2000).nullable().optional(),
   status: taskStatusSchema.optional(),

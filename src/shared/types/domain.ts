@@ -62,6 +62,8 @@ export interface Task {
   id: string
   projectId: string
   folderIds: string[]
+  /** Parent task in the same project; a parent cannot be done until all its children are. */
+  parentTaskId: string | null
   name: string
   description: string | null
   status: TaskStatus
@@ -79,6 +81,7 @@ export type TaskInput = Pick<Task, 'projectId' | 'name'> &
     Pick<
       Task,
       | 'folderIds'
+      | 'parentTaskId'
       | 'description'
       | 'status'
       | 'priority'
