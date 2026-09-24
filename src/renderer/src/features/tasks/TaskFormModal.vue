@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { computed, reactive, ref } from 'vue'
 import type { Task, TaskFolder, TaskPriority } from '@shared/types/domain'
 import { useTasksStore } from '../../stores/tasks'
@@ -13,6 +14,7 @@ const props = defineProps<{
 const emit = defineEmits<{ close: [] }>()
 
 const tasksStore = useTasksStore()
+const { t } = useI18n()
 
 const form = reactive({
   name: props.task?.name ?? '',
@@ -52,7 +54,7 @@ const error = ref<string | null>(null)
 
 async function submit(): Promise<void> {
   if (!form.name.trim()) {
-    error.value = 'Task name is required.'
+    error.value = t('tasks.form.errorName')
     return
   }
   saving.value = true
@@ -73,7 +75,7 @@ async function submit(): Promise<void> {
     }
     emit('close')
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Something went wrong.'
+    error.value = e instanceof Error ? e.message : t('common.genericError')
   } finally {
     saving.value = false
   }
@@ -84,18 +86,18 @@ async function submit(): Promise<void> {
   <div class="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4" @click.self="emit('close')">
     <div class="w-full max-w-md rounded-xl border border-base-300 bg-base-100 p-5 shadow-2xl">
       <h2 class="mb-4 text-base font-semibold">
-        {{ task ? 'Edit task' : form.parentTaskId ? 'New subtask' : 'New task' }}
+        {{ task ? t('tasks.form.editTitle') : form.parentTaskId ? t('tasks.form.newSubtaskTitle') : t('tasks.form.newTitle') }}
       </h2>
 
       <div class="space-y-3">
         <div>
-          <label class="mb-1 block text-xs font-medium text-base-content/60">Name</label>
-          <input v-model="form.name" class="input input-bordered input-sm w-full" placeholder="Task name" />
+          <label class="mb-1 block text-xs font-medium text-base-content/60">{{ t('common.name') }}</label>
+          <input v-model="form.name" class="input input-bordered input-sm w-full" :placeholder="t('tasks.form.namePlaceholder')" />
         </div>
         <div>
-          <label class="mb-1 block text-xs font-medium text-base-content/60">Parent task</label>
+          <label class="mb-1 block text-xs font-medium text-base-content/60">{{ t('tasks.form.parent') }}</label>
           <select v-model="form.parentTaskId" class="select select-bordered select-sm w-full">
-            <option :value="null">None (top-level task)</option>
+            <option :value="null">{{ t('tasks.form.noParent') }}</option>
             <option v-for="option in parentOptions" :key="option.id" :value="option.id">
               {{ option.label }}
             </option>
@@ -103,9 +105,9 @@ async function submit(): Promise<void> {
         </div>
         <div>
           <div class="mb-1 flex items-center justify-between gap-2">
-            <span class="text-xs font-medium text-base-content/60">Folders</span>
+            <span class="text-xs font-medium text-base-content/60">{{ t('tasks.form.folders') }}</span>
             <span v-if="form.folderIds.length > 0" class="text-[11px] text-base-content/40">
-              {{ form.folderIds.length }} selected
+              {{ t('tasks.form.foldersSelected', { count: form.folderIds.length }) }}
             </span>
           </div>
           <div
@@ -128,25 +130,25 @@ async function submit(): Promise<void> {
             </label>
           </div>
           <p v-else class="rounded-lg border border-dashed border-base-300 px-3 py-2 text-xs text-base-content/40">
-            No folders in this project yet.
+            {{ t('tasks.form.noFolders') }}
           </p>
         </div>
         <div>
-          <label class="mb-1 block text-xs font-medium text-base-content/60">Description</label>
+          <label class="mb-1 block text-xs font-medium text-base-content/60">{{ t('common.description') }}</label>
           <textarea v-model="form.description" class="textarea textarea-bordered textarea-sm w-full" rows="2" />
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="mb-1 block text-xs font-medium text-base-content/60">Priority</label>
+            <label class="mb-1 block text-xs font-medium text-base-content/60">{{ t('tasks.form.priority') }}</label>
             <select v-model="form.priority" class="select select-bordered select-sm w-full">
-              <option value="low">Low</option>
-              <option value="normal">Normal</option>
-              <option value="high">High</option>
-              <option value="urgent">Urgent</option>
+              <option value="low">{{ t('tasks.priority.low') }}</option>
+              <option value="normal">{{ t('tasks.priority.normal') }}</option>
+              <option value="high">{{ t('tasks.priority.high') }}</option>
+              <option value="urgent">{{ t('tasks.priority.urgent') }}</option>
             </select>
           </div>
           <div>
-            <label class="mb-1 block text-xs font-medium text-base-content/60">Estimate (h)</label>
+            <label class="mb-1 block text-xs font-medium text-base-content/60">{{ t('tasks.form.estimate') }}</label>
             <input v-model.number="form.estimatedHours" type="number" min="0" step="0.5" class="input input-bordered input-sm w-full" />
           </div>
         </div>
@@ -154,9 +156,9 @@ async function submit(): Promise<void> {
       </div>
 
       <div class="mt-5 flex justify-end gap-2">
-        <button class="btn btn-ghost btn-sm" @click="emit('close')">Cancel</button>
+        <button class="btn btn-ghost btn-sm" @click="emit('close')">{{ t('common.cancel') }}</button>
         <button class="btn btn-primary btn-sm" :disabled="saving" @click="submit">
-          {{ task ? 'Save' : 'Create task' }}
+          {{ task ? t('common.save') : t('tasks.form.create') }}
         </button>
       </div>
     </div>

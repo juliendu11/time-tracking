@@ -3,6 +3,7 @@ import { formatDurationClock } from '@shared/utils/duration'
 import type { AppContext } from '@main/context'
 import { resourcePath } from '@main/resourcePaths'
 import { showMainWindow } from '@main/windows/mainWindow'
+import { mainMessages } from '@main/i18n'
 
 let tray: Tray | null = null
 let refreshHandle: NodeJS.Timeout | null = null
@@ -31,8 +32,10 @@ export function destroyTray(): void {
   tray = null
 }
 
-function rebuildTrayMenu(context: AppContext): void {
+/** Also called directly when the UI language changes. */
+export function rebuildTrayMenu(context: AppContext): void {
   if (!tray) return
+  const m = mainMessages(context.settings.get().language)
   const snapshots = context.timer.getSnapshots()
 
   const recentEntries = context.timeEntries.listRecent(8)
@@ -48,7 +51,7 @@ function rebuildTrayMenu(context: AppContext): void {
     .map((entry) => {
       const project = context.projects.findById(entry.projectId)
       const task = entry.taskId ? context.tasks.findById(entry.taskId) : null
-      const label = task ? `${project?.name ?? '?'} / ${task.name}` : project?.name ?? 'Unknown'
+      const label = task ? `${project?.name ?? '?'} / ${task.name}` : project?.name ?? m.trayUnknownProject
       return {
         label: `▶ ${label}`,
         click: () => {
@@ -62,18 +65,18 @@ function rebuildTrayMenu(context: AppContext): void {
       ? snapshots.flatMap((snapshot, index) => [
           ...(index > 0 ? [{ type: 'separator' as const }] : []),
           { label: `● ${snapshot.project.name}`, enabled: false },
-          { label: `  ${snapshot.task?.name ?? 'No task'}`, enabled: false },
+          { label: `  ${snapshot.task?.name ?? m.trayNoTask}`, enabled: false },
           { label: `  ${formatDurationClock(snapshot.elapsedSeconds)}`, enabled: false },
           {
-            label: snapshot.isPaused ? 'Resume timer' : 'Pause timer',
+            label: snapshot.isPaused ? m.trayResume : m.trayPause,
             click: () =>
               snapshot.isPaused
                 ? context.timer.resume(snapshot.timer.id)
                 : context.timer.pause(snapshot.timer.id)
           },
-          { label: 'Stop timer', click: () => context.timer.stop(snapshot.timer.id) }
+          { label: m.trayStop, click: () => context.timer.stop(snapshot.timer.id) }
         ])
-      : [{ label: 'No timer running', enabled: false }]
+      : [{ label: m.trayNoTimer, enabled: false }]
 
   const menu = Menu.buildFromTemplate([
     { label: 'TimeTracker', enabled: false },
@@ -81,16 +84,14 @@ function rebuildTrayMenu(context: AppContext): void {
     ...header,
     { type: 'separator' },
     ...(recentTasksMenu.length > 0
-      ? [{ label: 'Recent tasks', enabled: false }, ...recentTasksMenu, { type: 'separator' as const }]
+      ? [{ label: m.trayRecentTasks, enabled: false }, ...recentTasksMenu, { type: 'separator' as const }]
       : []),
-    { label: 'Open TimeTracker', click: () => showMainWindow() },
-    { label: 'Quit', click: () => app.quit() }
+    { label: m.trayOpen, click: () => showMainWindow() },
+    { label: m.trayQuit, click: () => app.quit() }
   ])
 
   tray.setContextMenu(menu)
   tray.setToolTip(
-    snapshots.length > 0
-      ? `TimeTracker — ${snapshots.length} active timer${snapshots.length === 1 ? '' : 's'}`
-      : 'TimeTracker'
+    snapshots.length > 0 ? m.trayTooltipActive(snapshots.length) : 'TimeTracker'
   )
 }

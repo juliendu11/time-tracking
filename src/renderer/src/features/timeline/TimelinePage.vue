@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { computed, onMounted, ref, watch } from 'vue'
 import { CalendarDays, CalendarRange, ChevronLeft, ChevronRight } from '@lucide/vue'
 import { addDays } from 'date-fns'
@@ -17,6 +18,7 @@ const DEFAULT_START_HOUR = 6
 
 const settingsStore = useSettingsStore()
 const uiStore = useUiStore()
+const { t, locale } = useI18n()
 const currentDate = ref(new Date())
 const viewMode = ref<ViewMode>(localStorage.getItem(VIEW_STORAGE_KEY) === 'week' ? 'week' : 'day')
 const entries = ref<TimeEntry[]>([])
@@ -40,7 +42,7 @@ const days = computed(() => {
 
 const periodLabel = computed(() => {
   if (viewMode.value === 'day') {
-    return currentDate.value.toLocaleDateString(undefined, {
+    return currentDate.value.toLocaleDateString(locale.value, {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
@@ -49,12 +51,12 @@ const periodLabel = computed(() => {
   }
   const first = range.value.start
   const last = addDays(range.value.end, -1)
-  const firstLabel = first.toLocaleDateString(undefined, {
+  const firstLabel = first.toLocaleDateString(locale.value, {
     day: 'numeric',
     month: first.getMonth() === last.getMonth() ? undefined : 'short',
     year: first.getFullYear() === last.getFullYear() ? undefined : 'numeric'
   })
-  const lastLabel = last.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })
+  const lastLabel = last.toLocaleDateString(locale.value, { day: 'numeric', month: 'long', year: 'numeric' })
   return `${firstLabel} – ${lastLabel}`
 })
 
@@ -113,9 +115,9 @@ const isEmpty = computed(() => [...columns.value.values()].every((blocks) => blo
 <template>
   <div class="mx-auto space-y-4 p-6" :class="viewMode === 'week' ? 'max-w-6xl' : 'max-w-4xl'">
     <div class="flex flex-wrap items-center justify-between gap-3">
-      <h1 class="text-xl font-semibold">Timeline</h1>
+      <h1 class="text-xl font-semibold">{{ t('routes.timeline') }}</h1>
       <div class="flex items-center gap-3">
-        <div class="join" role="group" aria-label="Timeline view">
+        <div class="join" role="group" :aria-label="t('timeline.viewLabel')">
           <button
             type="button"
             class="btn join-item btn-sm gap-1.5"
@@ -123,7 +125,7 @@ const isEmpty = computed(() => [...columns.value.values()].every((blocks) => blo
             :aria-pressed="viewMode === 'day'"
             @click="viewMode = 'day'"
           >
-            <CalendarDays :size="14" /> Day
+            <CalendarDays :size="14" /> {{ t('timeline.day') }}
           </button>
           <button
             type="button"
@@ -132,23 +134,23 @@ const isEmpty = computed(() => [...columns.value.values()].every((blocks) => blo
             :aria-pressed="viewMode === 'week'"
             @click="viewMode = 'week'"
           >
-            <CalendarRange :size="14" /> Week
+            <CalendarRange :size="14" /> {{ t('timeline.week') }}
           </button>
         </div>
         <div class="flex items-center gap-1.5">
           <button
             class="btn btn-ghost btn-sm btn-square"
-            :aria-label="viewMode === 'week' ? 'Previous week' : 'Previous day'"
+            :aria-label="viewMode === 'week' ? t('timeline.previousWeek') : t('timeline.previousDay')"
             @click="shift(-1)"
           >
             <ChevronLeft :size="16" />
           </button>
           <button class="btn btn-ghost btn-sm" :class="isCurrentPeriod ? 'btn-disabled' : ''" @click="goToday">
-            Today
+            {{ t('dashboard.header.today') }}
           </button>
           <button
             class="btn btn-ghost btn-sm btn-square"
-            :aria-label="viewMode === 'week' ? 'Next week' : 'Next day'"
+            :aria-label="viewMode === 'week' ? t('timeline.nextWeek') : t('timeline.nextDay')"
             @click="shift(1)"
           >
             <ChevronRight :size="16" />
@@ -160,7 +162,7 @@ const isEmpty = computed(() => [...columns.value.values()].every((blocks) => blo
     <div class="flex items-baseline justify-between text-sm">
       <p class="text-base-content/60">{{ periodLabel }}</p>
       <p v-if="!isEmpty" class="tabular-nums text-base-content/50">
-        {{ formatDurationCompact(totalSeconds) }} tracked
+        {{ t('dashboard.heatmap.tracked', { duration: formatDurationCompact(totalSeconds) }) }}
       </p>
     </div>
 
@@ -175,7 +177,7 @@ const isEmpty = computed(() => [...columns.value.values()].every((blocks) => blo
     />
 
     <p v-if="isEmpty" class="py-6 text-center text-sm text-base-content/40">
-      {{ viewMode === 'week' ? 'No time tracked this week' : 'No time tracked on this day' }}
+      {{ viewMode === 'week' ? t('timeline.emptyWeek') : t('dashboard.dayDrawer.empty') }}
     </p>
 
     <ManualEntryModal v-if="editingEntry" :entry="editingEntry" @close="editingEntry = null; load()" />

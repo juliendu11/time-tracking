@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { computed } from 'vue'
 import {
   Archive,
@@ -39,6 +40,8 @@ defineEmits<{
   delete: []
 }>()
 
+const { t } = useI18n()
+
 const progress = computed(() => {
   if (!props.task.estimatedMinutes) return null
   return Math.min(100, Math.round((props.durationSeconds / 60 / props.task.estimatedMinutes) * 100))
@@ -49,12 +52,9 @@ const blocked = computed(
   () => props.task.status !== 'done' && props.subtasks.done < props.subtasks.total
 )
 const completeLabel = computed(() => {
-  if (props.task.status === 'done') return 'Mark as not done'
-  if (blocked.value) {
-    const remaining = props.subtasks.total - props.subtasks.done
-    return `Complete ${remaining} remaining subtask${remaining === 1 ? '' : 's'} first`
-  }
-  return 'Mark as done'
+  if (props.task.status === 'done') return t('tasks.row.markNotDone')
+  if (blocked.value) return t('tasks.row.completeSubtasksFirst', props.subtasks.total - props.subtasks.done)
+  return t('tasks.row.markDone')
 })
 
 const priorityColor: Record<string, string> = {
@@ -74,7 +74,7 @@ const priorityColor: Record<string, string> = {
     <button
       v-if="hasSubtasks"
       class="-mx-1.5 shrink-0 text-base-content/50 hover:text-base-content"
-      :aria-label="collapsed ? 'Expand subtasks' : 'Collapse subtasks'"
+      :aria-label="collapsed ? t('tasks.row.expand') : t('tasks.row.collapse')"
       @click="$emit('toggleCollapse')"
     >
       <ChevronRight v-if="collapsed" :size="14" />
@@ -105,13 +105,13 @@ const priorityColor: Record<string, string> = {
           v-if="hasSubtasks"
           class="inline-flex items-center gap-1 tabular-nums"
           :class="subtasks.done === subtasks.total ? 'text-success' : ''"
-          :title="`${subtasks.done} of ${subtasks.total} subtasks done`"
+          :title="t('tasks.row.subtasksDone', { done: subtasks.done, total: subtasks.total })"
         >
           <ListTree :size="12" /> {{ subtasks.done }}/{{ subtasks.total }}
         </span>
-        <span v-if="task.estimatedMinutes">Estimate: {{ (task.estimatedMinutes / 60).toFixed(1) }}h</span>
-        <span v-if="progress !== null">Progress: {{ progress }}%</span>
-        <span class="font-medium" :class="priorityColor[task.priority]">● {{ task.priority }}</span>
+        <span v-if="task.estimatedMinutes">{{ t('tasks.row.estimate', { hours: (task.estimatedMinutes / 60).toFixed(1) }) }}</span>
+        <span v-if="progress !== null">{{ t('tasks.row.progress', { percent: progress }) }}</span>
+        <span class="font-medium" :class="priorityColor[task.priority]">● {{ t(`tasks.priority.${task.priority}`) }}</span>
       </div>
       <progress v-if="progress !== null" class="progress progress-primary mt-1 h-1 w-full" :value="progress" max="100" />
     </div>
@@ -125,22 +125,22 @@ const priorityColor: Record<string, string> = {
       class="btn btn-primary btn-xs shrink-0 gap-1"
       @click="$emit('start')"
     >
-      <Play :size="12" /> Start
+      <Play :size="12" /> {{ t('palette.start') }}
     </button>
-    <span v-else class="badge badge-primary badge-sm shrink-0">Tracking</span>
+    <span v-else class="badge badge-primary badge-sm shrink-0">{{ t('tasks.row.tracking') }}</span>
 
     <div class="hidden shrink-0 items-center gap-1 group-hover:flex">
       <button
         class="btn btn-ghost btn-xs btn-square"
-        title="Add subtask"
-        aria-label="Add subtask"
+        :title="t('tasks.row.addSubtask')"
+        :aria-label="t('tasks.row.addSubtask')"
         @click="$emit('addSubtask')"
       >
         <Plus :size="12" />
       </button>
-      <button class="btn btn-ghost btn-xs btn-square" @click="$emit('edit')"><Pencil :size="12" /></button>
-      <button class="btn btn-ghost btn-xs btn-square" @click="$emit('archive')"><Archive :size="12" /></button>
-      <button class="btn btn-ghost btn-xs btn-square text-error" @click="$emit('delete')"><Trash2 :size="12" /></button>
+      <button class="btn btn-ghost btn-xs btn-square" :title="t('common.edit')" @click="$emit('edit')"><Pencil :size="12" /></button>
+      <button class="btn btn-ghost btn-xs btn-square" :title="t('projects.archive')" @click="$emit('archive')"><Archive :size="12" /></button>
+      <button class="btn btn-ghost btn-xs btn-square text-error" :title="t('common.delete')" @click="$emit('delete')"><Trash2 :size="12" /></button>
     </div>
   </div>
 </template>

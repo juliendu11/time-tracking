@@ -1,6 +1,7 @@
 import { computed, ref, watchEffect } from 'vue'
 import { defineStore } from 'pinia'
 import type { AppSettings, AppSettingsUpdate } from '@shared/types/domain'
+import { i18n } from '../i18n'
 
 export const useSettingsStore = defineStore('settings', () => {
   const settings = ref<AppSettings | null>(null)
@@ -10,6 +11,11 @@ export const useSettingsStore = defineStore('settings', () => {
     settings.value = await window.desktop.settings.get()
     loaded.value = true
   }
+
+  // Another window (e.g. the mini timer vs. the main window) changed a setting.
+  window.desktop.settings.onChanged((next) => {
+    settings.value = next
+  })
 
   async function update(patch: AppSettingsUpdate): Promise<void> {
     if (!settings.value) return
@@ -24,6 +30,13 @@ export const useSettingsStore = defineStore('settings', () => {
       return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
     }
     return pref
+  })
+
+  watchEffect(() => {
+    if (!settings.value) return
+    // Kept out of the i18n module so it stays DOM-free (the unit tests import it).
+    i18n.global.locale.value = settings.value.language
+    document.documentElement.lang = settings.value.language
   })
 
   watchEffect(() => {

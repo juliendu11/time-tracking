@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref } from 'vue'
 import { Pencil, Play, Trash2 } from '@lucide/vue'
 import type { TimeEntry } from '@shared/types/domain'
@@ -10,6 +11,7 @@ import ManualEntryModal from '../../timer/ManualEntryModal.vue'
 
 const props = defineProps<{ entries: TimeEntry[] }>()
 const emit = defineEmits<{ changed: [] }>()
+const { t, locale } = useI18n()
 
 const projectsStore = useProjectsStore()
 const timerStore = useTimerStore()
@@ -18,7 +20,7 @@ const uiStore = useUiStore()
 const editingEntry = ref<TimeEntry | null>(null)
 
 function projectName(id: string): string {
-  return projectsStore.byId(id)?.name ?? 'Unknown project'
+  return projectsStore.byId(id)?.name ?? t('common.unknownProject')
 }
 function projectColor(id: string): string {
   return projectsStore.byId(id)?.color ?? '#888'
@@ -27,7 +29,7 @@ function projectColor(id: string): string {
 function timeRange(entry: TimeEntry): string {
   const start = new Date(entry.startedAt)
   const end = entry.endedAt ? new Date(entry.endedAt) : null
-  const fmt = (d: Date): string => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  const fmt = (d: Date): string => d.toLocaleTimeString(locale.value, { hour: '2-digit', minute: '2-digit' })
   return end ? `${fmt(start)} - ${fmt(end)}` : fmt(start)
 }
 
@@ -39,8 +41,8 @@ async function restart(entry: TimeEntry): Promise<void> {
 async function remove(entry: TimeEntry): Promise<void> {
   await window.desktop.timeEntries.delete(entry.id)
   uiStore.pushToast({
-    message: 'Time entry deleted',
-    actionLabel: 'Undo',
+    message: t('entries.deleted'),
+    actionLabel: t('common.undo'),
     onAction: async () => {
       await window.desktop.timeEntries.restore(entry)
       emit('changed')
@@ -52,7 +54,7 @@ async function remove(entry: TimeEntry): Promise<void> {
 
 <template>
   <div class="rounded-xl border border-base-300 bg-base-200/40 p-4">
-    <h2 class="mb-3 text-sm font-semibold">Recent Time Entries</h2>
+    <h2 class="mb-3 text-sm font-semibold">{{ t('dashboard.recentEntries.title') }}</h2>
     <ul class="space-y-1">
       <li
         v-for="entry in props.entries"
@@ -67,19 +69,19 @@ async function remove(entry: TimeEntry): Promise<void> {
         </div>
         <span class="shrink-0 text-sm font-medium tabular-nums">{{ formatDurationCompact(entry.durationSeconds) }}</span>
         <div class="hidden shrink-0 items-center gap-1 group-hover:flex">
-          <button class="btn btn-ghost btn-xs btn-square" title="Restart" @click="restart(entry)">
+          <button class="btn btn-ghost btn-xs btn-square" :title="t('common.restart')" @click="restart(entry)">
             <Play :size="13" />
           </button>
-          <button class="btn btn-ghost btn-xs btn-square" title="Edit" @click="editingEntry = entry">
+          <button class="btn btn-ghost btn-xs btn-square" :title="t('common.edit')" @click="editingEntry = entry">
             <Pencil :size="13" />
           </button>
-          <button class="btn btn-ghost btn-xs btn-square text-error" title="Delete" @click="remove(entry)">
+          <button class="btn btn-ghost btn-xs btn-square text-error" :title="t('common.delete')" @click="remove(entry)">
             <Trash2 :size="13" />
           </button>
         </div>
       </li>
       <li v-if="props.entries.length === 0" class="px-2 py-6 text-center text-sm text-base-content/40">
-        No time entries yet
+        {{ t('dashboard.recentEntries.empty') }}
       </li>
     </ul>
 

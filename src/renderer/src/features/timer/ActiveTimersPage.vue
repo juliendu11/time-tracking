@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { computed, onMounted, ref, watch } from 'vue'
 import { Pause, Play, Plus, Square } from '@lucide/vue'
 import type { Task } from '@shared/types/domain'
@@ -10,6 +11,7 @@ import { useUiStore } from '../../stores/ui'
 const projectsStore = useProjectsStore()
 const timerStore = useTimerStore()
 const uiStore = useUiStore()
+const { t, locale } = useI18n()
 
 const projectId = ref('')
 const taskId = ref<string | null>(null)
@@ -45,7 +47,7 @@ async function startTimer(): Promise<void> {
       description: description.value.trim() || null
     })
     description.value = ''
-    uiStore.pushToast({ message: 'Parallel timer started' })
+    uiStore.pushToast({ message: t('timers.parallelStarted') })
   } finally {
     starting.value = false
   }
@@ -55,14 +57,14 @@ async function stopTimer(timerId: string): Promise<void> {
   const entry = await timerStore.stop(timerId)
   if (entry) {
     uiStore.pushToast({
-      message: `Saved ${formatDurationSpaced(entry.durationSeconds)}`,
+      message: t('timer.saved', { duration: formatDurationSpaced(entry.durationSeconds) }),
       timeoutMs: 4000
     })
   }
 }
 
 function startedLabel(startedAt: string): string {
-  return new Date(startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  return new Date(startedAt).toLocaleTimeString(locale.value, { hour: '2-digit', minute: '2-digit' })
 }
 </script>
 
@@ -71,26 +73,26 @@ function startedLabel(startedAt: string): string {
     <section class="overflow-hidden rounded-2xl border border-base-300 bg-base-200/40">
       <div class="grid gap-5 p-5 sm:grid-cols-[1fr_auto] sm:items-end">
         <div>
-          <p class="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Live workspace</p>
-          <h1 class="mt-1 text-2xl font-semibold tracking-tight">Active timers</h1>
+          <p class="text-xs font-semibold uppercase tracking-[0.2em] text-primary">{{ t('timers.eyebrow') }}</p>
+          <h1 class="mt-1 text-2xl font-semibold tracking-tight">{{ t('timers.title') }}</h1>
           <p class="mt-2 max-w-xl text-sm text-base-content/60">
-            Every timer is independent. Start work on another project or task without interrupting what is already running.
+            {{ t('timers.intro') }}
           </p>
         </div>
         <div class="flex gap-2 text-center">
           <div class="min-w-20 rounded-xl border border-base-300 bg-base-100 px-4 py-2.5">
             <p class="font-mono text-xl font-semibold tabular-nums">{{ runningCount }}</p>
-            <p class="text-[10px] font-semibold uppercase tracking-wider text-base-content/45">Running</p>
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-base-content/45">{{ t('timers.running') }}</p>
           </div>
           <div class="min-w-20 rounded-xl border border-base-300 bg-base-100 px-4 py-2.5">
             <p class="font-mono text-xl font-semibold tabular-nums">{{ pausedCount }}</p>
-            <p class="text-[10px] font-semibold uppercase tracking-wider text-base-content/45">Paused</p>
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-base-content/45">{{ t('timers.paused') }}</p>
           </div>
           <div class="min-w-28 rounded-xl border border-primary/30 bg-primary/10 px-4 py-2.5">
             <p class="font-mono text-xl font-semibold tabular-nums text-primary">
               {{ formatDurationClock(timerStore.totalElapsedSeconds) }}
             </p>
-            <p class="text-[10px] font-semibold uppercase tracking-wider text-primary/70">Combined</p>
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-primary/70">{{ t('timers.combined') }}</p>
           </div>
         </div>
       </div>
@@ -118,14 +120,14 @@ function startedLabel(startedAt: string): string {
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-2">
                   <h2 class="truncate text-base font-semibold">{{ snapshot.project.name }}</h2>
-                  <span v-if="snapshot.isPaused" class="badge badge-ghost badge-xs">Paused</span>
+                  <span v-if="snapshot.isPaused" class="badge badge-ghost badge-xs">{{ t('timers.paused') }}</span>
                 </div>
                 <p class="mt-0.5 truncate text-sm text-base-content/60">
-                  {{ snapshot.task?.name ?? 'No task' }}
+                  {{ snapshot.task?.name ?? t('common.noTask') }}
                 </p>
               </div>
               <p class="text-xs tabular-nums text-base-content/45">
-                Since {{ startedLabel(snapshot.timer.startedAt) }}
+                {{ t('timers.since', { time: startedLabel(snapshot.timer.startedAt) }) }}
               </p>
             </div>
 
@@ -135,7 +137,7 @@ function startedLabel(startedAt: string): string {
             >
               {{ snapshot.timer.description }}
             </p>
-            <div v-else class="mt-4 min-h-10 text-sm italic text-base-content/30">No description</div>
+            <div v-else class="mt-4 min-h-10 text-sm italic text-base-content/30">{{ t('timers.noDescription') }}</div>
 
             <div class="mt-4 flex items-end justify-between gap-4 border-t border-base-300/70 pt-4">
               <p class="font-mono text-3xl font-semibold tracking-tight tabular-nums">
@@ -148,10 +150,10 @@ function startedLabel(startedAt: string): string {
                 >
                   <Play v-if="snapshot.isPaused" :size="14" />
                   <Pause v-else :size="14" />
-                  {{ snapshot.isPaused ? 'Resume' : 'Pause' }}
+                  {{ snapshot.isPaused ? t('timer.resume') : t('timer.pause') }}
                 </button>
                 <button class="btn btn-error btn-sm" @click="stopTimer(snapshot.timer.id)">
-                  <Square :size="14" /> Stop
+                  <Square :size="14" /> {{ t('timer.stop') }}
                 </button>
               </div>
             </div>
@@ -165,9 +167,9 @@ function startedLabel(startedAt: string): string {
           <div class="grid h-12 w-12 place-items-center rounded-full bg-primary/10 text-primary">
             <Play :size="20" />
           </div>
-          <h2 class="mt-4 text-base font-semibold">No active timers</h2>
+          <h2 class="mt-4 text-base font-semibold">{{ t('timers.emptyTitle') }}</h2>
           <p class="mt-1 max-w-sm text-sm text-base-content/55">
-            Use the launch panel to start a timer with an optional task. Additional timers will run alongside it.
+            {{ t('timers.emptyBody') }}
           </p>
         </div>
       </section>
@@ -178,16 +180,16 @@ function startedLabel(startedAt: string): string {
             <Plus :size="16" />
           </div>
           <div>
-            <h2 class="text-sm font-semibold">Launch another timer</h2>
-            <p class="text-xs text-base-content/50">Existing timers keep running</p>
+            <h2 class="text-sm font-semibold">{{ t('timers.launchTitle') }}</h2>
+            <p class="text-xs text-base-content/50">{{ t('timers.launchSubtitle') }}</p>
           </div>
         </div>
 
         <div class="mt-5 space-y-4">
           <label class="block">
-            <span class="mb-1.5 block text-xs font-medium text-base-content/60">Project</span>
+            <span class="mb-1.5 block text-xs font-medium text-base-content/60">{{ t('common.project') }}</span>
             <select v-model="projectId" class="select select-bordered select-sm w-full">
-              <option value="" disabled>Choose a project</option>
+              <option value="" disabled>{{ t('common.chooseProject') }}</option>
               <option v-for="project in projectsStore.activeProjects" :key="project.id" :value="project.id">
                 {{ project.name }}
               </option>
@@ -195,19 +197,19 @@ function startedLabel(startedAt: string): string {
           </label>
 
           <label class="block">
-            <span class="mb-1.5 block text-xs font-medium text-base-content/60">Task</span>
+            <span class="mb-1.5 block text-xs font-medium text-base-content/60">{{ t('common.task') }}</span>
             <select v-model="taskId" class="select select-bordered select-sm w-full" :disabled="!projectId">
-              <option :value="null">No task</option>
+              <option :value="null">{{ t('common.noTask') }}</option>
               <option v-for="task in tasks" :key="task.id" :value="task.id">{{ task.name }}</option>
             </select>
           </label>
 
           <label class="block">
-            <span class="mb-1.5 block text-xs font-medium text-base-content/60">Description</span>
+            <span class="mb-1.5 block text-xs font-medium text-base-content/60">{{ t('common.description') }}</span>
             <textarea
               v-model="description"
               class="textarea textarea-bordered min-h-20 w-full resize-none text-sm"
-              placeholder="What are you working on?"
+              :placeholder="t('timers.descriptionPlaceholder')"
             />
           </label>
 
@@ -217,7 +219,7 @@ function startedLabel(startedAt: string): string {
             @click="startTimer"
           >
             <Play :size="15" />
-            {{ timerStore.isRunning ? 'Start in parallel' : 'Start timer' }}
+            {{ timerStore.isRunning ? t('timers.startParallel') : t('timer.start') }}
           </button>
         </div>
       </aside>

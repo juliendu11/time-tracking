@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import type { TimeEntry, TimeFormat } from '@shared/types/domain'
 import { formatDurationCompact } from '@shared/utils/duration'
@@ -19,6 +20,7 @@ const props = defineProps<{
 const emit = defineEmits<{ select: [entry: TimeEntry]; selectDay: [day: Date] }>()
 
 const projectsStore = useProjectsStore()
+const { t, locale } = useI18n()
 
 const HOUR_HEIGHT = 56
 const MIN_BLOCK_HEIGHT = 18
@@ -58,7 +60,7 @@ function formatHour(hour: number): string {
 }
 
 function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString(undefined, {
+  return new Date(iso).toLocaleTimeString(locale.value, {
     hour: '2-digit',
     minute: '2-digit',
     hour12: props.timeFormat === '12h'
@@ -69,7 +71,7 @@ function projectColor(id: string): string {
   return projectsStore.byId(id)?.color ?? '#888'
 }
 function projectName(id: string): string {
-  return projectsStore.byId(id)?.name ?? 'Unknown'
+  return projectsStore.byId(id)?.name ?? t('common.unknown')
 }
 
 function blockStyle(block: ScheduleBlock<TimeEntry>): Record<string, string> {
@@ -124,14 +126,14 @@ function isWeekend(day: Date): boolean {
         type="button"
         class="group flex flex-col items-center gap-0.5 border-r border-base-300 py-2 last:border-r-0 hover:bg-base-200/60"
         :class="isWeekend(day) ? 'bg-base-200/30' : ''"
-        :title="day.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })"
+        :title="day.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' })"
         @click="emit('selectDay', day)"
       >
         <span
           class="text-[11px] font-medium uppercase tracking-wide"
           :class="toLocalDateKey(day) === todayKey ? 'text-primary' : 'text-base-content/50'"
         >
-          {{ day.toLocaleDateString(undefined, { weekday: 'short' }) }}
+          {{ day.toLocaleDateString(locale, { weekday: 'short' }) }}
         </span>
         <span
           class="flex h-8 w-8 items-center justify-center rounded-full text-lg font-semibold tabular-nums"
