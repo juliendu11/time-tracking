@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { computed, onMounted, ref, watch } from 'vue'
-import type { ReportGroupBy, ReportResult } from '@shared/types/domain'
+import type { ReportGroupBy, ReportGroupRow, ReportResult } from '@shared/types/domain'
 import { formatDurationSpaced } from '@shared/utils/duration'
 import { useProjectsStore } from '../../stores/projects'
 import { useTagsStore } from '../../stores/tags'
@@ -10,6 +11,7 @@ import BaseCheckBox from '@renderer/components/BaseCheckBox.vue'
 const projectsStore = useProjectsStore()
 const tagsStore = useTagsStore()
 const uiStore = useUiStore()
+const { t } = useI18n()
 
 type Preset = 'this-week' | 'last-week' | 'this-month' | 'last-30' | 'custom'
 
@@ -97,6 +99,15 @@ watch([customStart, customEnd], () => {
   if (preset.value === 'custom') runReport()
 })
 
+/** The main process labels a few synthetic groups in English; relabel them here. */
+function groupLabel(group: ReportGroupRow): string {
+  if (group.key === 'no-task') return t('common.noTask')
+  if (group.key === 'no-tag') return t('reports.noTag')
+  if (group.key === 'all') return t('reports.all')
+  if (groupBy.value === 'week') return t('reports.weekOf', { date: group.key })
+  return group.label
+}
+
 const changePercent = computed(() => {
   if (!result.value || !previousResult.value || previousResult.value.totalSeconds === 0) return null
   return Math.round(
@@ -107,15 +118,15 @@ const changePercent = computed(() => {
 
 <template>
   <div class="mx-auto max-w-5xl space-y-5 p-6">
-    <h1 class="text-xl font-semibold">Reports</h1>
+    <h1 class="text-xl font-semibold">{{ t('routes.reports') }}</h1>
 
     <div class="flex flex-wrap items-center gap-2">
       <select v-model="preset" class="select select-bordered select-sm">
-        <option value="this-week">This week</option>
-        <option value="last-week">Last week</option>
-        <option value="this-month">This month</option>
-        <option value="last-30">Last 30 days</option>
-        <option value="custom">Custom range</option>
+        <option value="this-week">{{ t('reports.presets.thisWeek') }}</option>
+        <option value="last-week">{{ t('reports.presets.lastWeek') }}</option>
+        <option value="this-month">{{ t('reports.presets.thisMonth') }}</option>
+        <option value="last-30">{{ t('reports.presets.last30') }}</option>
+        <option value="custom">{{ t('reports.presets.custom') }}</option>
       </select>
       <template v-if="preset === 'custom'">
         <input v-model="customStart" type="date" class="input input-bordered input-sm" />
@@ -124,55 +135,55 @@ const changePercent = computed(() => {
       </template>
 
       <select v-model="projectFilter" class="select select-bordered select-sm">
-        <option value="">All projects</option>
+        <option value="">{{ t('layout.allProjects') }}</option>
         <option v-for="p in projectsStore.activeProjects" :key="p.id" :value="p.id">{{ p.name }}</option>
       </select>
 
       <select v-model="tagFilter" class="select select-bordered select-sm">
-        <option value="">All tags</option>
-        <option v-for="t in tagsStore.tags" :key="t.id" :value="t.id">{{ t.name }}</option>
+        <option value="">{{ t('reports.allTags') }}</option>
+        <option v-for="tag in tagsStore.tags" :key="tag.id" :value="tag.id">{{ tag.name }}</option>
       </select>
 
       <BaseCheckBox
-        label="Without task"
+        :label="t('reports.withoutTask')"
         :checked="onlyWithoutTask"
         @change="onlyWithoutTask = ($event.target as HTMLInputElement).checked"
       />
 
       <BaseCheckBox
-        label="Compare to previous period"
+        :label="t('reports.compare')"
         :checked="compare"
         @change="compare = ($event.target as HTMLInputElement).checked"
       />
 
       <select v-model="groupBy" class="select select-bordered select-sm ml-auto">
-        <option value="project">Group by project</option>
-        <option value="task">Group by task</option>
-        <option value="day">Group by day</option>
-        <option value="week">Group by week</option>
-        <option value="month">Group by month</option>
-        <option value="tag">Group by tag</option>
+        <option value="project">{{ t('reports.groupBy.project') }}</option>
+        <option value="task">{{ t('reports.groupBy.task') }}</option>
+        <option value="day">{{ t('reports.groupBy.day') }}</option>
+        <option value="week">{{ t('reports.groupBy.week') }}</option>
+        <option value="month">{{ t('reports.groupBy.month') }}</option>
+        <option value="tag">{{ t('reports.groupBy.tag') }}</option>
       </select>
     </div>
 
     <div v-if="result" class="grid grid-cols-2 gap-4 sm:grid-cols-4">
       <div class="rounded-xl border border-base-300 bg-base-200/40 p-3">
-        <p class="text-xs text-base-content/50">Total</p>
+        <p class="text-xs text-base-content/50">{{ t('calendar.total') }}</p>
         <p class="font-semibold">{{ formatDurationSpaced(result.totalSeconds) }}</p>
         <p v-if="changePercent !== null" class="text-xs" :class="changePercent >= 0 ? 'text-success' : 'text-error'">
-          {{ changePercent >= 0 ? '+' : '' }}{{ changePercent }}% vs previous
+          {{ t('reports.vsPrevious', { change: `${changePercent >= 0 ? '+' : ''}${changePercent}` }) }}
         </p>
       </div>
       <div class="rounded-xl border border-base-300 bg-base-200/40 p-3">
-        <p class="text-xs text-base-content/50">Sessions</p>
+        <p class="text-xs text-base-content/50">{{ t('reports.sessions') }}</p>
         <p class="font-semibold">{{ result.totalSessions }}</p>
       </div>
       <div class="rounded-xl border border-base-300 bg-base-200/40 p-3">
-        <p class="text-xs text-base-content/50">Avg session</p>
+        <p class="text-xs text-base-content/50">{{ t('reports.avgSession') }}</p>
         <p class="font-semibold">{{ formatDurationSpaced(result.averageSessionSeconds) }}</p>
       </div>
       <div class="rounded-xl border border-base-300 bg-base-200/40 p-3">
-        <p class="text-xs text-base-content/50">Top project</p>
+        <p class="text-xs text-base-content/50">{{ t('reports.topProject') }}</p>
         <p class="truncate font-semibold">{{ result.topProject?.name ?? '—' }}</p>
       </div>
     </div>
@@ -181,21 +192,21 @@ const changePercent = computed(() => {
       <table class="w-full text-sm">
         <thead>
           <tr class="border-b border-base-300 bg-base-200/50 text-left text-xs uppercase text-base-content/50">
-            <th class="px-3 py-2">{{ groupBy }}</th>
-            <th class="px-3 py-2 text-right">Duration</th>
-            <th class="px-3 py-2 text-right">Sessions</th>
-            <th class="px-3 py-2 text-right">Avg</th>
+            <th class="px-3 py-2">{{ t(`reports.columns.${groupBy}`) }}</th>
+            <th class="px-3 py-2 text-right">{{ t('reports.duration') }}</th>
+            <th class="px-3 py-2 text-right">{{ t('reports.sessions') }}</th>
+            <th class="px-3 py-2 text-right">{{ t('reports.avg') }}</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="group in result.groups" :key="group.key" class="border-b border-base-300/60">
-            <td class="px-3 py-2">{{ group.label }}</td>
+            <td class="px-3 py-2">{{ groupLabel(group) }}</td>
             <td class="px-3 py-2 text-right tabular-nums">{{ formatDurationSpaced(group.durationSeconds) }}</td>
             <td class="px-3 py-2 text-right tabular-nums">{{ group.sessions }}</td>
             <td class="px-3 py-2 text-right tabular-nums">{{ formatDurationSpaced(group.averageSessionSeconds) }}</td>
           </tr>
           <tr v-if="result.groups.length === 0">
-            <td colspan="4" class="py-8 text-center text-base-content/40">No data for this period</td>
+            <td colspan="4" class="py-8 text-center text-base-content/40">{{ t('reports.empty') }}</td>
           </tr>
         </tbody>
       </table>

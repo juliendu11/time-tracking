@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { computed, onMounted, ref, watch } from 'vue'
 import { ChevronLeft, ChevronRight } from '@lucide/vue'
 import type { TimeEntry } from '@shared/types/domain'
@@ -15,6 +16,7 @@ const MAX_CHIPS = 3
 const projectsStore = useProjectsStore()
 const settingsStore = useSettingsStore()
 const uiStore = useUiStore()
+const { t, locale } = useI18n()
 const currentMonth = ref(shiftMonth(new Date(), 0))
 const selectedDate = ref(toLocalDateKey(new Date()))
 const entries = ref<TimeEntry[]>([])
@@ -24,7 +26,7 @@ const weekStartsOn = computed(() => settingsStore.settings?.weekStartsOn ?? 1)
 const todayKey = computed(() => toLocalDateKey(new Date()))
 
 const monthLabel = computed(() =>
-  currentMonth.value.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+  currentMonth.value.toLocaleDateString(locale.value, { month: 'long', year: 'numeric' })
 )
 
 const isCurrentMonth = computed(() => {
@@ -48,7 +50,7 @@ const days = computed(() => buildMonthGrid(currentMonth.value, weekStartsOn.valu
 const weekdayLabels = computed(() =>
   days.value
     .slice(0, 7)
-    .map((d) => new Date(`${d.date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short' }))
+    .map((d) => new Date(`${d.date}T12:00:00`).toLocaleDateString(locale.value, { weekday: 'short' }))
 )
 
 const monthTotal = computed(() =>
@@ -62,7 +64,7 @@ const selectedDay = computed<CalendarDay | null>(
 )
 
 const selectedDayLabel = computed(() =>
-  new Date(`${selectedDate.value}T12:00:00`).toLocaleDateString(undefined, {
+  new Date(`${selectedDate.value}T12:00:00`).toLocaleDateString(locale.value, {
     weekday: 'long',
     day: 'numeric',
     month: 'long'
@@ -87,11 +89,11 @@ function projectColor(id: string): string {
   return projectsStore.byId(id)?.color ?? '#888'
 }
 function projectName(id: string): string {
-  return projectsStore.byId(id)?.name ?? 'Unknown'
+  return projectsStore.byId(id)?.name ?? t('common.unknown')
 }
 
 function timeLabel(iso: string): string {
-  return new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+  return new Date(iso).toLocaleTimeString(locale.value, { hour: '2-digit', minute: '2-digit' })
 }
 
 /** Subtle background intensity so busy days stand out at a glance. */
@@ -105,13 +107,13 @@ function intensityStyle(day: CalendarDay): Record<string, string> {
 <template>
   <div class="mx-auto max-w-6xl space-y-4 p-6">
     <div class="flex items-center justify-between">
-      <h1 class="text-xl font-semibold">Calendar</h1>
+      <h1 class="text-xl font-semibold">{{ t('routes.calendar') }}</h1>
       <div class="flex items-center gap-1.5">
-        <button class="btn btn-ghost btn-sm btn-square" aria-label="Previous month" @click="shift(-1)">
+        <button class="btn btn-ghost btn-sm btn-square" :aria-label="t('calendar.previousMonth')" @click="shift(-1)">
           <ChevronLeft :size="16" />
         </button>
-        <button class="btn btn-ghost btn-sm" :class="isCurrentMonth ? 'btn-disabled' : ''" @click="goToday">Today</button>
-        <button class="btn btn-ghost btn-sm btn-square" aria-label="Next month" @click="shift(1)">
+        <button class="btn btn-ghost btn-sm" :class="isCurrentMonth ? 'btn-disabled' : ''" @click="goToday">{{ t('dashboard.header.today') }}</button>
+        <button class="btn btn-ghost btn-sm btn-square" :aria-label="t('calendar.nextMonth')" @click="shift(1)">
           <ChevronRight :size="16" />
         </button>
       </div>
@@ -119,7 +121,7 @@ function intensityStyle(day: CalendarDay): Record<string, string> {
     <div class="flex items-baseline justify-between">
       <p class="text-sm capitalize text-base-content/60">{{ monthLabel }}</p>
       <p class="text-sm text-base-content/60">
-        Total <span class="font-semibold text-base-content">{{ formatDurationCompact(monthTotal) }}</span>
+        {{ t('calendar.total') }} <span class="font-semibold text-base-content">{{ formatDurationCompact(monthTotal) }}</span>
       </p>
     </div>
 
@@ -165,7 +167,7 @@ function intensityStyle(day: CalendarDay): Record<string, string> {
               {{ entry.description || projectName(entry.projectId) }}
             </div>
             <p v-if="day.entries.length > MAX_CHIPS" class="px-1 text-[11px] text-base-content/50">
-              +{{ day.entries.length - MAX_CHIPS }} more
+              {{ t('calendar.more', { count: day.entries.length - MAX_CHIPS }) }}
             </p>
           </button>
         </div>
@@ -175,7 +177,7 @@ function intensityStyle(day: CalendarDay): Record<string, string> {
         <div>
           <p class="text-sm font-semibold capitalize">{{ selectedDayLabel }}</p>
           <p class="text-xs text-base-content/60">
-            {{ formatDurationCompact(selectedDay?.totalSeconds ?? 0) }} tracked
+            {{ t('dashboard.heatmap.tracked', { duration: formatDurationCompact(selectedDay?.totalSeconds ?? 0) }) }}
           </p>
         </div>
         <div v-if="selectedDay && selectedDay.entries.length > 0" class="space-y-2">
@@ -197,7 +199,7 @@ function intensityStyle(day: CalendarDay): Record<string, string> {
             </p>
           </button>
         </div>
-        <p v-else class="py-6 text-center text-sm text-base-content/40">No time tracked on this day</p>
+        <p v-else class="py-6 text-center text-sm text-base-content/40">{{ t('dashboard.dayDrawer.empty') }}</p>
       </aside>
     </div>
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Archive, ArchiveRestore, Plus, Search, Star, Trash2 } from '@lucide/vue'
@@ -11,6 +12,7 @@ import ProjectFormModal from './ProjectFormModal.vue'
 const router = useRouter()
 const projectsStore = useProjectsStore()
 const uiStore = useUiStore()
+const { t } = useI18n()
 
 const search = ref('')
 const statusFilter = ref<'active' | 'archived' | 'favorites'>('active')
@@ -60,8 +62,8 @@ async function remove(project: Project): Promise<void> {
   const stats = projectStats.value[project.id]
   const hasHistory = (stats?.week ?? 0) > 0
   const message = hasHistory
-    ? `"${project.name}" has tracked time. This will permanently delete it and all its time entries. Continue?`
-    : `Delete "${project.name}"? This cannot be undone.`
+    ? t('projects.confirmDeleteWithHistory', { name: project.name })
+    : t('projects.confirmDelete', { name: project.name })
   if (!window.confirm(message)) return
   await projectsStore.remove(project.id)
 }
@@ -74,26 +76,26 @@ function openProject(id: string): void {
 <template>
   <div class="mx-auto max-w-6xl space-y-5 p-6">
     <div class="flex items-center justify-between">
-      <h1 class="text-xl font-semibold">Projects</h1>
+      <h1 class="text-xl font-semibold">{{ t('routes.projects') }}</h1>
       <button class="btn btn-primary btn-sm gap-1.5" @click="uiStore.newProjectOpen = true">
-        <Plus :size="15" /> New project
+        <Plus :size="15" /> {{ t('projects.new') }}
       </button>
     </div>
 
     <div class="flex flex-wrap items-center gap-3">
       <div class="relative flex-1 min-w-[200px] max-w-xs">
         <Search :size="14" class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-base-content/40" />
-        <input v-model="search" placeholder="Search projects…" class="input input-bordered input-sm w-full pl-8" />
+        <input v-model="search" :placeholder="t('projects.searchPlaceholder')" class="input input-bordered input-sm w-full pl-8" />
       </div>
       <div class="flex rounded-lg border border-base-300 p-0.5 text-xs">
         <button
           v-for="opt in (['active', 'favorites', 'archived'] as const)"
           :key="opt"
-          class="rounded-md px-2.5 py-1 capitalize"
+          class="rounded-md px-2.5 py-1"
           :class="statusFilter === opt ? 'bg-primary/15 text-primary' : ''"
           @click="statusFilter = opt"
         >
-          {{ opt }}
+          {{ t(`projects.filters.${opt}`) }}
         </button>
       </div>
     </div>
@@ -117,8 +119,8 @@ function openProject(id: string): void {
         <p v-if="project.description" class="mt-1 truncate text-xs text-base-content/50">{{ project.description }}</p>
 
         <div class="mt-3 flex items-center gap-4 text-xs text-base-content/60">
-          <span>Today: <span class="font-medium text-base-content">{{ formatDurationSpaced(projectStats[project.id]?.today ?? 0) }}</span></span>
-          <span>Week: <span class="font-medium text-base-content">{{ formatDurationSpaced(projectStats[project.id]?.week ?? 0) }}</span></span>
+          <span>{{ t('projects.todayLabel') }} <span class="font-medium text-base-content">{{ formatDurationSpaced(projectStats[project.id]?.today ?? 0) }}</span></span>
+          <span>{{ t('projects.weekLabel') }} <span class="font-medium text-base-content">{{ formatDurationSpaced(projectStats[project.id]?.week ?? 0) }}</span></span>
         </div>
 
         <div
@@ -133,11 +135,11 @@ function openProject(id: string): void {
         </div>
 
         <div class="mt-3 hidden items-center gap-1 group-hover:flex">
-          <button class="btn btn-ghost btn-xs" @click.stop="editingProject = project">Edit</button>
+          <button class="btn btn-ghost btn-xs" @click.stop="editingProject = project">{{ t('common.edit') }}</button>
           <button class="btn btn-ghost btn-xs gap-1" @click.stop="archiveOrRestore(project)">
             <ArchiveRestore v-if="project.isArchived" :size="12" />
             <Archive v-else :size="12" />
-            {{ project.isArchived ? 'Restore' : 'Archive' }}
+            {{ project.isArchived ? t('projects.restore') : t('projects.archive') }}
           </button>
           <button class="btn btn-ghost btn-xs text-error" @click.stop="remove(project)">
             <Trash2 :size="12" />
@@ -146,7 +148,7 @@ function openProject(id: string): void {
       </div>
 
       <div v-if="filteredProjects.length === 0" class="col-span-full py-16 text-center text-sm text-base-content/40">
-        No projects found
+        {{ t('projects.empty') }}
       </div>
     </div>
 

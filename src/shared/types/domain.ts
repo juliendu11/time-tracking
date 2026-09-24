@@ -140,9 +140,17 @@ export type TimeFormat = '24h' | '12h'
 export type DateFormat = 'iso' | 'us' | 'eu'
 export type QuickSwitchBehavior = 'atomic_switch' | 'ask_to_stop'
 
+/** UI languages the app ships translations for. */
+export const SUPPORTED_LANGUAGES = ['en', 'fr'] as const
+export type Language = (typeof SUPPORTED_LANGUAGES)[number]
+
+export function isSupportedLanguage(value: string): value is Language {
+  return (SUPPORTED_LANGUAGES as readonly string[]).includes(value)
+}
+
 export interface AppSettings {
   theme: ThemePreference
-  language: string
+  language: Language
   weekStartsOn: WeekStartsOn
   timeFormat: TimeFormat
   dateFormat: DateFormat

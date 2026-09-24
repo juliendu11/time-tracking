@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {computed, onMounted, ref, watch} from 'vue'
+import {useI18n} from 'vue-i18n'
 import {
   ChevronDown,
   ChevronRight,
@@ -28,6 +29,7 @@ const tasksStore = useTasksStore()
 const taskFoldersStore = useTaskFoldersStore()
 const timerStore = useTimerStore()
 const uiStore = useUiStore()
+const {t} = useI18n()
 
 const project = ref<Project | null>(null)
 const stats = ref<ProjectStats | null>(null)
@@ -135,7 +137,7 @@ const taskGroups = computed(() => {
   if (isFiltering) grouped = grouped.filter((group) => group.tasks.length > 0)
   const unfiled = filteredTasks.value.filter((task) => task.folderIds.length === 0)
   if (unfiled.length > 0 || (!isFiltering && taskFolders.value.length === 0)) {
-    grouped.push({id: '', name: 'No folder', folder: null, tasks: unfiled})
+    grouped.push({id: '', name: t('projectDetail.noFolder'), folder: null, tasks: unfiled})
   }
   return grouped.map((group) => ({...group, rows: toTreeRows(group.tasks)}))
 })
@@ -201,7 +203,7 @@ async function toggleComplete(task: Task): Promise<void> {
     // Electron prefixes errors thrown by IPC handlers with the channel name.
     const message = e instanceof Error
         ? e.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
-        : 'Unable to update the task.'
+        : t('projectDetail.errorUpdateTask')
     uiStore.pushToast({message})
   }
 }
@@ -222,11 +224,11 @@ async function archiveTask(task: Task): Promise<void> {
 }
 
 async function removeTask(task: Task): Promise<void> {
-  const subtaskCount = tasks.value.filter((t) => t.parentTaskId === task.id).length
-  const detail = subtaskCount === 0
-      ? ''
-      : ` Its ${subtaskCount} subtask${subtaskCount === 1 ? '' : 's'} will become top-level task${subtaskCount === 1 ? '' : 's'}.`
-  if (!window.confirm(`Delete task "${task.name}"?${detail}`)) return
+  const subtaskCount = tasks.value.filter((candidate) => candidate.parentTaskId === task.id).length
+  const message = subtaskCount === 0
+      ? t('projectDetail.confirmDeleteTask', {name: task.name})
+      : t('projectDetail.confirmDeleteTaskWithSubtasks', {name: task.name, count: subtaskCount}, subtaskCount)
+  if (!window.confirm(message)) return
   await tasksStore.remove(task.id, props.id)
 }
 
@@ -261,10 +263,10 @@ function toggleFolder(folderId: string): void {
 
 async function removeFolder(folder: TaskFolder): Promise<void> {
   const taskCount = tasks.value.filter((task) => task.folderIds.includes(folder.id)).length
-  const detail = taskCount === 0
-      ? ''
-      : ` It will be removed from ${taskCount} task${taskCount === 1 ? '' : 's'}; their other folders will be preserved.`
-  if (!window.confirm(`Delete folder "${folder.name}"?${detail}`)) return
+  const message = taskCount === 0
+      ? t('projectDetail.confirmDeleteFolder', {name: folder.name})
+      : t('projectDetail.confirmDeleteFolderWithTasks', {name: folder.name, count: taskCount}, taskCount)
+  if (!window.confirm(message)) return
   await taskFoldersStore.remove(folder.id, props.id)
   await tasksStore.loadForProject(props.id, true)
 }
@@ -284,32 +286,32 @@ const weekProgress = computed(() => {
       </div>
       <button class="btn btn-primary btn-sm gap-1.5" @click="startFreeTimer">
         <Play :size="14" />
-        Start timer
+        {{ t('timer.start') }}
       </button>
     </div>
 
     <div v-if="stats" class="grid grid-cols-2 gap-4 sm:grid-cols-4">
       <div class="rounded-xl border border-base-300 bg-base-200/40 p-3">
-        <p class="text-xs text-base-content/50">Today</p>
+        <p class="text-xs text-base-content/50">{{ t('dashboard.header.today') }}</p>
         <p class="font-semibold">{{ formatDurationSpaced(stats.today.durationSeconds) }}</p>
       </div>
       <div class="rounded-xl border border-base-300 bg-base-200/40 p-3">
-        <p class="text-xs text-base-content/50">This week</p>
+        <p class="text-xs text-base-content/50">{{ t('dashboard.header.thisWeek') }}</p>
         <p class="font-semibold">{{ formatDurationSpaced(stats.week.durationSeconds) }}</p>
       </div>
       <div class="rounded-xl border border-base-300 bg-base-200/40 p-3">
-        <p class="text-xs text-base-content/50">This month</p>
+        <p class="text-xs text-base-content/50">{{ t('projectDetail.thisMonth') }}</p>
         <p class="font-semibold">{{ formatDurationSpaced(stats.month.durationSeconds) }}</p>
       </div>
       <div class="rounded-xl border border-base-300 bg-base-200/40 p-3">
-        <p class="text-xs text-base-content/50">All time</p>
+        <p class="text-xs text-base-content/50">{{ t('projectDetail.allTime') }}</p>
         <p class="font-semibold">{{ formatDurationSpaced(stats.allTime.durationSeconds) }}</p>
       </div>
     </div>
 
     <div v-if="weekProgress !== null" class="rounded-xl border border-base-300 bg-base-200/40 p-4">
       <div class="mb-1 flex justify-between text-sm">
-        <span class="text-base-content/60">Weekly goal</span>
+        <span class="text-base-content/60">{{ t('dashboard.header.weeklyGoal') }}</span>
         <span class="font-medium">{{ weekProgress }}%</span>
       </div>
       <progress class="progress progress-primary w-full" :value="weekProgress" max="100" />
@@ -317,27 +319,27 @@ const weekProgress = computed(() => {
 
     <div>
       <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 class="text-base font-semibold">Tasks</h2>
+        <h2 class="text-base font-semibold">{{ t('projectDetail.tasks') }}</h2>
         <div class="flex items-center gap-2">
-          <input v-model="search" placeholder="Search tasks…" class="input input-bordered input-xs w-40" />
+          <input v-model="search" :placeholder="t('projectDetail.searchPlaceholder')" class="input input-bordered input-xs w-40" />
           <select v-model="statusFilter" class="select select-bordered select-xs">
-            <option value="all">All</option>
-            <option value="todo">Todo</option>
-            <option value="in_progress">In progress</option>
-            <option value="done">Done</option>
+            <option value="all">{{ t('projectDetail.status.all') }}</option>
+            <option value="todo">{{ t('projectDetail.status.todo') }}</option>
+            <option value="in_progress">{{ t('projectDetail.status.inProgress') }}</option>
+            <option value="done">{{ t('projectDetail.status.done') }}</option>
           </select>
           <select v-model="sortBy" class="select select-bordered select-xs w-40">
-            <option value="created">Newest</option>
-            <option value="priority">Priority</option>
-            <option value="name">Name</option>
+            <option value="created">{{ t('projectDetail.sort.newest') }}</option>
+            <option value="priority">{{ t('tasks.form.priority') }}</option>
+            <option value="name">{{ t('common.name') }}</option>
           </select>
           <button class="btn btn-ghost btn-xs gap-1" @click="showFolderForm = true">
             <FolderPlus :size="13" />
-            Folder
+            {{ t('projectDetail.addFolder') }}
           </button>
           <button class="btn btn-ghost btn-xs gap-1" @click="openTaskForm()">
             <Plus :size="13" />
-            Task
+            {{ t('projectDetail.addTask') }}
           </button>
         </div>
       </div>
@@ -351,7 +353,7 @@ const weekProgress = computed(() => {
             <button
               v-if="group.folder"
               class="btn btn-ghost btn-xs btn-square"
-              :aria-label="collapsedFolderIds.has(group.id) ? 'Expand folder' : 'Collapse folder'"
+              :aria-label="collapsedFolderIds.has(group.id) ? t('projectDetail.expandFolder') : t('projectDetail.collapseFolder')"
               @click="toggleFolder(group.id)"
             >
               <ChevronRight v-if="collapsedFolderIds.has(group.id)" :size="14" />
@@ -366,21 +368,21 @@ const weekProgress = computed(() => {
             <template v-if="group.folder">
               <button
                 class="btn btn-ghost btn-xs btn-square opacity-0 group-hover/folder:opacity-100"
-                aria-label="Add task to folder"
+                :aria-label="t('projectDetail.addTaskToFolder')"
                 @click="openTaskForm(group.id)"
               >
                 <Plus :size="12" />
               </button>
               <button
                 class="btn btn-ghost btn-xs btn-square opacity-0 group-hover/folder:opacity-100"
-                aria-label="Rename folder"
+                :aria-label="t('tasks.folderForm.renameTitle')"
                 @click="editingFolder = group.folder"
               >
                 <Pencil :size="12" />
               </button>
               <button
                 class="btn btn-ghost btn-xs btn-square text-error opacity-0 group-hover/folder:opacity-100"
-                aria-label="Delete folder"
+                :aria-label="t('projectDetail.deleteFolder')"
                 @click="removeFolder(group.folder)"
               >
                 <Trash2 :size="12" />
@@ -412,7 +414,7 @@ const weekProgress = computed(() => {
               class="w-full rounded-lg border border-dashed border-base-300 py-3 text-xs text-base-content/35 transition-colors hover:border-primary/40 hover:text-primary"
               @click="openTaskForm(group.id)"
             >
-              Add the first task
+              {{ t('projectDetail.addFirstTask') }}
             </button>
           </div>
         </section>
@@ -420,13 +422,13 @@ const weekProgress = computed(() => {
           v-if="filteredTasks.length === 0 && taskFolders.length === 0"
           class="py-8 text-center text-sm text-base-content/40"
         >
-          No tasks yet
+          {{ t('projectDetail.noTasks') }}
         </p>
         <p
           v-else-if="taskGroups.length === 0"
           class="py-8 text-center text-sm text-base-content/40"
         >
-          No matching tasks
+          {{ t('projectDetail.noMatchingTasks') }}
         </p>
       </div>
     </div>

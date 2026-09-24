@@ -40,6 +40,7 @@ import type { AppContext } from '@main/context'
 import { applyAccelerator } from '@main/shortcuts/globalShortcuts'
 import { toggleMiniTimerWindow } from '@main/windows/miniTimerWindow'
 import { applyLaunchAtStartup } from '@main/autostart'
+import { rebuildTrayMenu } from '@main/tray/tray'
 import type { NotificationService } from '@main/services/notification.service'
 
 function handle<Args extends unknown[], Result>(
@@ -182,6 +183,8 @@ export function registerIpcHandlers(context: AppContext, notifications: Notifica
       toggleMiniTimerWindow(next.showMiniTimer, next.miniTimerAlwaysOnTop)
     }
     if (update.launchAtStartup !== undefined) applyLaunchAtStartup(next.launchAtStartup)
+    if (update.language !== undefined) rebuildTrayMenu(context)
+    broadcast(IPC_CHANNELS.settingsChangedEvent, next)
     return next
   })
 

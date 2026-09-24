@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { SUPPORTED_LANGUAGES } from '@shared/types/domain'
 
 const isoDate = z.string().refine((v) => !Number.isNaN(new Date(v).getTime()), 'Invalid date')
 
@@ -89,7 +90,7 @@ export const tagInputSchema = z.object({
 export const appSettingsUpdateSchema = z
   .object({
     theme: z.enum(['system', 'light', 'dark']),
-    language: z.string().min(2).max(10),
+    language: z.enum(SUPPORTED_LANGUAGES),
     weekStartsOn: z.union([z.literal(0), z.literal(1)]),
     timeFormat: z.enum(['24h', '12h']),
     dateFormat: z.enum(['iso', 'us', 'eu']),

@@ -95,6 +95,19 @@ table — not renderer state:
   them and the renderer prompts **Remove idle time / Keep idle time / Split
   session** before anything is changed.
 
+### Internationalization
+
+The UI ships in English and French (`vue-i18n`, Composition API mode). Never
+hard-code user-facing text: add it to `src/renderer/src/i18n/locales/en.ts`
+**and** `fr.ts` (typed against `en`, so a missing French key fails
+`pnpm typecheck`) and render it with `t('…')`. Dates and times use the
+active `locale` instead of the system one. The chosen language lives in
+`settings.language` (`SUPPORTED_LANGUAGES` in `src/shared/types/domain.ts`);
+the tray menu and desktop notifications read it through the small
+main-process catalog in `src/main/i18n.ts`. `tests/unit/i18n.spec.ts` fails
+on unknown keys, mismatched placeholders, or plural forms that differ
+between languages.
+
 ### Database
 
 - Engine: SQLite via `better-sqlite3`, queried through Drizzle ORM (`src/main/db/schema.ts`).

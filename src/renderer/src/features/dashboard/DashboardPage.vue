@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { computed, onMounted, ref, watch } from 'vue'
 import type {
   AdditionalMetrics,
@@ -24,6 +25,7 @@ import DayEntriesDrawer from './components/DayEntriesDrawer.vue'
 
 const projectsStore = useProjectsStore()
 const uiStore = useUiStore()
+const { t } = useI18n()
 
 const summary = ref<DashboardSummary | null>(null)
 const recentEntries = ref<TimeEntry[]>([])
@@ -39,9 +41,9 @@ const loading = ref(true)
 
 const greeting = computed(() => {
   const hour = new Date().getHours()
-  if (hour < 12) return 'Good morning'
-  if (hour < 18) return 'Good afternoon'
-  return 'Good evening'
+  if (hour < 12) return t('dashboard.greeting.morning')
+  if (hour < 18) return t('dashboard.greeting.afternoon')
+  return t('dashboard.greeting.evening')
 })
 
 async function loadAll(): Promise<void> {

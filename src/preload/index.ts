@@ -73,7 +73,13 @@ const desktopApi: DesktopApi = {
   },
   settings: {
     get: () => invoke(IPC_CHANNELS.settingsGet),
-    update: (update) => invoke(IPC_CHANNELS.settingsUpdate, update)
+    update: (update) => invoke(IPC_CHANNELS.settingsUpdate, update),
+    onChanged: (callback) => {
+      const listener = (_event: Electron.IpcRendererEvent, settings: Parameters<typeof callback>[0]): void =>
+        callback(settings)
+      ipcRenderer.on(IPC_CHANNELS.settingsChangedEvent, listener)
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.settingsChangedEvent, listener)
+    }
   },
   reports: {
     getDashboardSummary: (referenceDate) => invoke(IPC_CHANNELS.reportsDashboardSummary, referenceDate),

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { computed, onMounted, ref, watch } from 'vue'
 import { ChevronLeft, ChevronRight, Copy } from '@lucide/vue'
 import type { TimeEntry, TimesheetWeek } from '@shared/types/domain'
@@ -8,6 +9,7 @@ import { useUiStore } from '../../stores/ui'
 
 const settingsStore = useSettingsStore()
 const uiStore = useUiStore()
+const { t, locale } = useI18n()
 
 function startOfWeek(date: Date, weekStartsOn: 0 | 1): Date {
   const d = new Date(date)
@@ -48,7 +50,7 @@ function shiftWeek(delta: number): void {
 
 const dayKeys = computed(() => (week.value ? Object.keys(week.value.dailyTotals) : []))
 const dayLabels = computed(() =>
-  dayKeys.value.map((key) => new Date(`${key}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short' }))
+  dayKeys.value.map((key) => new Date(`${key}T00:00:00`).toLocaleDateString(locale.value, { weekday: 'short' }))
 )
 
 function rowKeyOf(projectId: string, taskId: string | null): string {
@@ -138,13 +140,13 @@ async function duplicatePreviousWeek(): Promise<void> {
 <template>
   <div class="mx-auto max-w-5xl space-y-4 p-6">
     <div class="flex items-center justify-between">
-      <h1 class="text-xl font-semibold">Timesheet</h1>
+      <h1 class="text-xl font-semibold">{{ t('routes.timesheet') }}</h1>
       <div class="flex items-center gap-1.5">
         <button class="btn btn-ghost btn-sm gap-1.5" @click="duplicatePreviousWeek">
-          <Copy :size="14" /> Duplicate last week
+          <Copy :size="14" /> {{ t('timesheet.duplicateLastWeek') }}
         </button>
-        <button class="btn btn-ghost btn-sm btn-square" @click="shiftWeek(-1)"><ChevronLeft :size="16" /></button>
-        <button class="btn btn-ghost btn-sm btn-square" @click="shiftWeek(1)"><ChevronRight :size="16" /></button>
+        <button class="btn btn-ghost btn-sm btn-square" :aria-label="t('timeline.previousWeek')" @click="shiftWeek(-1)"><ChevronLeft :size="16" /></button>
+        <button class="btn btn-ghost btn-sm btn-square" :aria-label="t('timeline.nextWeek')" @click="shiftWeek(1)"><ChevronRight :size="16" /></button>
       </div>
     </div>
     <p v-if="week" class="text-sm text-base-content/60">{{ week.weekStart }} → {{ week.weekEnd }}</p>
@@ -153,9 +155,9 @@ async function duplicatePreviousWeek(): Promise<void> {
       <table class="w-full text-sm">
         <thead>
           <tr class="border-b border-base-300 bg-base-200/50 text-left text-xs uppercase text-base-content/50">
-            <th class="px-3 py-2">Project / Task</th>
+            <th class="px-3 py-2">{{ t('timesheet.projectTask') }}</th>
             <th v-for="label in dayLabels" :key="label" class="px-2 py-2 text-center">{{ label }}</th>
-            <th class="px-3 py-2 text-right">Total</th>
+            <th class="px-3 py-2 text-right">{{ t('calendar.total') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -189,12 +191,12 @@ async function duplicatePreviousWeek(): Promise<void> {
             <td class="px-3 py-2 text-right font-medium tabular-nums">{{ formatDurationHm(row.totalSeconds) }}</td>
           </tr>
           <tr v-if="week.rows.length === 0">
-            <td :colspan="dayKeys.length + 2" class="py-8 text-center text-base-content/40">No time tracked this week</td>
+            <td :colspan="dayKeys.length + 2" class="py-8 text-center text-base-content/40">{{ t('timeline.emptyWeek') }}</td>
           </tr>
         </tbody>
         <tfoot>
           <tr class="bg-base-200/50 font-medium">
-            <td class="px-3 py-2">Total</td>
+            <td class="px-3 py-2">{{ t('calendar.total') }}</td>
             <td v-for="day in dayKeys" :key="day" class="px-2 py-2 text-center tabular-nums">
               {{ formatDurationHm(week.dailyTotals[day] ?? 0) }}
             </td>
@@ -204,7 +206,7 @@ async function duplicatePreviousWeek(): Promise<void> {
       </table>
     </div>
     <p class="text-xs text-base-content/40">
-      Accepts flexible formats: 2, 2.5, 2h, 2h30, 1:30, 90m
+      {{ t('timesheet.formatsHint') }}
     </p>
   </div>
 </template>

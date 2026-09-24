@@ -1,6 +1,7 @@
 import { Notification } from 'electron'
 import { formatDurationSpaced } from '@shared/utils/duration'
 import type { AppContext } from '@main/context'
+import { mainMessages } from '@main/i18n'
 
 const POLL_INTERVAL_MS = 5 * 60_000
 const LONG_SESSION_THRESHOLD_SECONDS = 3 * 3600
@@ -33,13 +34,15 @@ export class NotificationService {
   /** Sends a one-off notification on demand, bypassing notificationsEnabled. */
   sendTest(): boolean {
     if (!Notification.isSupported()) return false
-    this.notify('Test notification', 'Notifications are working correctly.')
+    const m = mainMessages(this.context.settings.get().language)
+    this.notify(m.notifyTestTitle, m.notifyTestBody)
     return true
   }
 
   private poll(): void {
     const settings = this.context.settings.get()
     if (!settings.notificationsEnabled) return
+    const m = mainMessages(settings.language)
 
     const now = new Date()
     const todayKey = now.toISOString().slice(0, 10)
@@ -48,10 +51,7 @@ export class NotificationService {
       const summary = this.context.reports.getDashboardSummary(now, settings.weeklyGoalMinutes)
       if (summary.todaySeconds / 60 >= settings.dailyGoalMinutes) {
         this.dailyGoalNotifiedForDate = todayKey
-        this.notify(
-          'Daily goal reached 🎯',
-          `You've tracked ${formatDurationSpaced(summary.todaySeconds)} today.`
-        )
+        this.notify(m.notifyDailyGoalTitle, m.notifyDailyGoalBody(formatDurationSpaced(summary.todaySeconds)))
       }
     }
 
@@ -68,8 +68,8 @@ export class NotificationService {
       ) {
         this.longSessionNotifiedTimerIds.add(snapshot.timer.id)
         this.notify(
-          'Still tracking',
-          `${snapshot.project.name} has been running for ${formatDurationSpaced(snapshot.elapsedSeconds)}.`
+          m.notifyLongSessionTitle,
+          m.notifyLongSessionBody(snapshot.project.name, formatDurationSpaced(snapshot.elapsedSeconds))
         )
       }
     }

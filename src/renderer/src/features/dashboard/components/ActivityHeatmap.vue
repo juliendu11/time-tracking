@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { computed } from 'vue'
 import type { HeatmapDay } from '@shared/types/domain'
 import { formatDurationSpaced } from '@shared/utils/duration'
 
 const props = defineProps<{ days: HeatmapDay[]; filterCurrentOnly: boolean }>()
 const emit = defineEmits<{ toggleFilter: []; selectDay: [date: string] }>()
+const { t, locale } = useI18n()
 
 const maxSeconds = computed(() => Math.max(1, ...props.days.map((d) => d.durationSeconds)))
 
@@ -41,35 +43,38 @@ const weeks = computed(() => {
 
 function tooltip(day: HeatmapDay): string {
   if (!day.date) return ''
-  const label = new Date(`${day.date}T00:00:00`).toLocaleDateString(undefined, {
+  const label = new Date(`${day.date}T00:00:00`).toLocaleDateString(locale.value, {
     weekday: 'long',
     day: 'numeric',
     month: 'long'
   })
-  return `${label}\n${formatDurationSpaced(day.durationSeconds)} tracked\n${day.projectCount} project${
-    day.projectCount === 1 ? '' : 's'
-  }\n${day.sessions} session${day.sessions === 1 ? '' : 's'}`
+  return [
+    label,
+    t('dashboard.heatmap.tracked', { duration: formatDurationSpaced(day.durationSeconds) }),
+    t('dashboard.heatmap.projects', day.projectCount),
+    t('dashboard.heatmap.sessions', day.sessions)
+  ].join('\n')
 }
 </script>
 
 <template>
   <div class="rounded-xl border border-base-300 bg-base-200/40 p-4">
     <div class="mb-4 flex items-center justify-between">
-      <h2 class="text-sm font-semibold">Activity — last 12 months</h2>
+      <h2 class="text-sm font-semibold">{{ t('dashboard.heatmap.title') }}</h2>
       <div class="flex rounded-lg border border-base-300 p-0.5 text-xs">
         <button
           class="rounded-md px-2 py-1"
           :class="!filterCurrentOnly ? 'bg-primary/15 text-primary' : ''"
           @click="filterCurrentOnly && emit('toggleFilter')"
         >
-          All Projects
+          {{ t('dashboard.heatmap.allProjects') }}
         </button>
         <button
           class="rounded-md px-2 py-1"
           :class="filterCurrentOnly ? 'bg-primary/15 text-primary' : ''"
           @click="!filterCurrentOnly && emit('toggleFilter')"
         >
-          Current Project
+          {{ t('dashboard.heatmap.currentProject') }}
         </button>
       </div>
     </div>

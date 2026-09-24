@@ -102,6 +102,8 @@ export interface DesktopApi {
   settings: {
     get(): Promise<AppSettings>
     update(update: AppSettingsUpdate): Promise<AppSettings>
+    /** Fires in every window after any settings change, so secondary windows stay in sync. */
+    onChanged(callback: (settings: AppSettings) => void): () => void
   }
   reports: {
     getDashboardSummary(referenceDate: string): Promise<DashboardSummary>
@@ -191,6 +193,7 @@ export const IPC_CHANNELS = {
 
   settingsGet: 'settings:get',
   settingsUpdate: 'settings:update',
+  settingsChangedEvent: 'settings:changed',
 
   reportsDashboardSummary: 'reports:dashboardSummary',
   reportsLastNDays: 'reports:lastNDays',

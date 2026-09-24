@@ -1,19 +1,21 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { Pause, Play, Square } from '@lucide/vue'
 import { formatDurationClock } from '@shared/utils/duration'
 import { useTimerStore } from '../../stores/timer'
 
 const timerStore = useTimerStore()
+const { t } = useI18n()
 </script>
 
 <template>
   <div class="tt-drag flex h-screen w-screen flex-col gap-3 overflow-y-auto bg-base-200 p-4 text-base-content">
     <div class="flex items-center justify-between">
       <span class="text-xs font-semibold uppercase tracking-wide text-base-content/60">
-        {{ timerStore.snapshots.length }} active
+        {{ t('miniTimer.active', timerStore.snapshots.length) }}
       </span>
       <span class="font-mono text-sm font-semibold tabular-nums">
-        {{ formatDurationClock(timerStore.totalElapsedSeconds) }} total
+        {{ t('miniTimer.total', { duration: formatDurationClock(timerStore.totalElapsedSeconds) }) }}
       </span>
     </div>
 
@@ -42,14 +44,14 @@ const timerStore = useTimerStore()
           </div>
         </div>
         <div class="mt-1 flex items-center justify-between gap-2 pl-4.5">
-          <p class="truncate text-xs text-base-content/60">{{ snapshot.task?.name ?? 'No task' }}</p>
+          <p class="truncate text-xs text-base-content/60">{{ snapshot.task?.name ?? t('common.noTask') }}</p>
           <span class="font-mono text-base font-semibold tabular-nums">
             {{ formatDurationClock(timerStore.elapsedSeconds(snapshot.timer.id)) }}
           </span>
         </div>
       </div>
     </div>
-    <div v-else class="my-auto text-center text-sm text-base-content/60">No timer running</div>
+    <div v-else class="my-auto text-center text-sm text-base-content/60">{{ t('miniTimer.empty') }}</div>
   </div>
 </template>
 
