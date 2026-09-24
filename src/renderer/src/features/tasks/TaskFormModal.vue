@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import type { Task, TaskFolder, TaskPriority } from '@shared/types/domain'
 import { useTasksStore } from '../../stores/tasks'
 
@@ -7,7 +7,8 @@ const props = defineProps<{
   projectId: string
   task?: Task
   folders?: TaskFolder[]
-  initialFolderId?: string | null
+  initialFolderIds?: string[]
+  initialParentTaskId?: string | null
 }>()
 const emit = defineEmits<{ close: [] }>()
 
@@ -15,10 +16,35 @@ const tasksStore = useTasksStore()
 
 const form = reactive({
   name: props.task?.name ?? '',
-  folderIds: props.task?.folderIds ?? (props.initialFolderId ? [props.initialFolderId] : []),
+  folderIds: props.task?.folderIds ?? props.initialFolderIds ?? [],
+  parentTaskId: props.task?.parentTaskId ?? props.initialParentTaskId ?? null,
   description: props.task?.description ?? '',
   priority: (props.task?.priority ?? 'normal') as TaskPriority,
   estimatedHours: props.task?.estimatedMinutes ? props.task.estimatedMinutes / 60 : null
+})
+
+/**
+ * Candidate parents in tree order, indented by depth. The edited task and its
+ * descendants are excluded since nesting under them would create a cycle.
+ */
+const parentOptions = computed(() => {
+  const candidates = tasksStore
+    .tasksFor(props.projectId)
+    .filter((t) => t.status !== 'archived' || t.id === form.parentTaskId)
+  const childrenByParent = new Map<string | null, Task[]>()
+  const ids = new Set(candidates.map((t) => t.id))
+  for (const t of candidates) {
+    const key = t.parentTaskId && ids.has(t.parentTaskId) ? t.parentTaskId : null
+    childrenByParent.set(key, [...(childrenByParent.get(key) ?? []), t])
+  }
+  const options: Array<{ id: string; label: string }> = []
+  const visit = (t: Task, depth: number): void => {
+    if (t.id === props.task?.id) return
+    options.push({ id: t.id, label: `${'\u2003'.repeat(depth)}${depth > 0 ? '↳ ' : ''}${t.name}` })
+    for (const child of childrenByParent.get(t.id) ?? []) visit(child, depth + 1)
+  }
+  for (const root of childrenByParent.get(null) ?? []) visit(root, 0)
+  return options
 })
 
 const saving = ref(false)
@@ -35,6 +61,7 @@ async function submit(): Promise<void> {
       name: form.name.trim(),
       // Electron's structured clone cannot serialize Vue's reactive array proxy.
       folderIds: [...form.folderIds],
+      parentTaskId: form.parentTaskId,
       description: form.description || null,
       priority: form.priority,
       estimatedMinutes: form.estimatedHours ? Math.round(form.estimatedHours * 60) : null
@@ -56,12 +83,23 @@ async function submit(): Promise<void> {
 <template>
   <div class="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4" @click.self="emit('close')">
     <div class="w-full max-w-md rounded-xl border border-base-300 bg-base-100 p-5 shadow-2xl">
-      <h2 class="mb-4 text-base font-semibold">{{ task ? 'Edit task' : 'New task' }}</h2>
+      <h2 class="mb-4 text-base font-semibold">
+        {{ task ? 'Edit task' : form.parentTaskId ? 'New subtask' : 'New task' }}
+      </h2>
 
       <div class="space-y-3">
         <div>
           <label class="mb-1 block text-xs font-medium text-base-content/60">Name</label>
           <input v-model="form.name" class="input input-bordered input-sm w-full" placeholder="Task name" />
+        </div>
+        <div>
+          <label class="mb-1 block text-xs font-medium text-base-content/60">Parent task</label>
+          <select v-model="form.parentTaskId" class="select select-bordered select-sm w-full">
+            <option :value="null">None (top-level task)</option>
+            <option v-for="option in parentOptions" :key="option.id" :value="option.id">
+              {{ option.label }}
+            </option>
+          </select>
         </div>
         <div>
           <div class="mb-1 flex items-center justify-between gap-2">

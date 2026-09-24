@@ -3,6 +3,7 @@ import migration0001 from './migrations/0001_init.sql?raw'
 import migration0002 from './migrations/0002_multiple_active_timers.sql?raw'
 import migration0003 from './migrations/0003_task_folders.sql?raw'
 import migration0004 from './migrations/0004_task_folder_assignments.sql?raw'
+import migration0005 from './migrations/0005_task_parent.sql?raw'
 
 interface Migration {
     name: string
@@ -19,7 +20,8 @@ const MIGRATIONS: Migration[] = [
     {name: '0002_multiple_active_timers', sql: migration0002},
     {name: '0003_task_folders', sql: migration0003},
     {name: '0002_task_folders', sql: migration0002},
-    {name: '0004_task_folder_assignments', sql: migration0004}
+    {name: '0004_task_folder_assignments', sql: migration0004},
+    {name: '0005_task_parent', sql: migration0005}
 ]
 
 export function runMigrations(db: Database.Database): void {
