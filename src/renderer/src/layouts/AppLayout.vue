@@ -15,6 +15,7 @@ import {
   Square,
   Table2,
   Timer,
+  CalendarDays,
   PanelLeftClose,
   PanelLeftOpen
 } from '@lucide/vue'
@@ -67,6 +68,7 @@ const navItems = [
   { name: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { name: 'timers', label: 'Timers', icon: Timer },
   { name: 'timeline', label: 'Timeline', icon: Clock },
+  { name: 'calendar', label: 'Calendar', icon: CalendarDays },
   { name: 'timesheet', label: 'Timesheet', icon: Table2 },
   { name: 'reports', label: 'Reports', icon: ChartColumn }
 ]
