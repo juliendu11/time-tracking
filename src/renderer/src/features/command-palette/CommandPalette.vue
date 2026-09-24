@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
+  CalendarDays,
   ChartColumn,
   Clock,
   FolderKanban,
@@ -83,6 +84,7 @@ const staticActions = computed<PaletteItem[]>(() => {
   { id: 'nav-dashboard', label: 'Go to Dashboard', icon: LayoutDashboard, run: () => goTo('dashboard') },
   { id: 'nav-timers', label: 'Go to Timers', icon: Timer, run: () => goTo('timers') },
   { id: 'nav-timeline', label: 'Go to Timeline', icon: Clock, run: () => goTo('timeline') },
+  { id: 'nav-calendar', label: 'Go to Calendar', icon: CalendarDays, run: () => goTo('calendar') },
   { id: 'nav-timesheet', label: 'Go to Timesheet', icon: Table2, run: () => goTo('timesheet') },
   { id: 'nav-reports', label: 'Go to Reports', icon: ChartColumn, run: () => goTo('reports') },
   { id: 'nav-projects', label: 'Go to Projects', icon: FolderKanban, run: () => goTo('projects') },

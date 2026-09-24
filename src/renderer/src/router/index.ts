@@ -25,6 +25,11 @@ export const router = createRouter({
       component: () => import('../features/timeline/TimelinePage.vue')
     },
     {
+      path: '/calendar',
+      name: 'calendar',
+      component: () => import('../features/calendar/CalendarPage.vue')
+    },
+    {
       path: '/timers',
       name: 'timers',
       component: () => import('../features/timer/ActiveTimersPage.vue')
