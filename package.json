@@ -24,10 +24,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "seed": "pnpm run build && cross-env SEED=1 electron-vite preview",
-    "package:linux": "pnpm run build && electron-builder --linux",
-    "package:win": "pnpm run build && electron-builder --win",
-    "package:mac": "pnpm run build && electron-builder --mac",
-    "package": "pnpm run build && electron-builder"
+    "package:linux": "pnpm run build && electron-builder --linux --publish never",
+    "package:win": "pnpm run build && electron-builder --win --publish never",
+    "package:mac": "pnpm run build && electron-builder --mac --publish never",
+    "package": "pnpm run build && electron-builder --publish never"
   },
   "dependencies": {
     "@lucide/vue": "^1.45.0",
