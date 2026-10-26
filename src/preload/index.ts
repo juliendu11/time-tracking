@@ -27,6 +27,12 @@ const desktopApi: DesktopApi = {
     archive: (id) => invoke(IPC_CHANNELS.tasksArchive, id),
     delete: (id) => invoke(IPC_CHANNELS.tasksDelete, id)
   },
+  taskFolders: {
+    listByProject: (projectId) => invoke(IPC_CHANNELS.taskFoldersListByProject, projectId),
+    create: (input) => invoke(IPC_CHANNELS.taskFoldersCreate, input),
+    update: (id, update) => invoke(IPC_CHANNELS.taskFoldersUpdate, id, update),
+    delete: (id) => invoke(IPC_CHANNELS.taskFoldersDelete, id)
+  },
   timeEntries: {
     listInRange: (startDate, endDate, projectId) =>
       invoke(IPC_CHANNELS.timeEntriesListInRange, startDate, endDate, projectId),
@@ -45,18 +51,16 @@ const desktopApi: DesktopApi = {
     delete: (id) => invoke(IPC_CHANNELS.tagsDelete, id)
   },
   timer: {
-    getSnapshot: () => invoke(IPC_CHANNELS.timerGetSnapshot),
+    getSnapshots: () => invoke(IPC_CHANNELS.timerGetSnapshots),
     start: (params) => invoke(IPC_CHANNELS.timerStart, params),
-    stop: () => invoke(IPC_CHANNELS.timerStop),
-    pause: () => invoke(IPC_CHANNELS.timerPause),
-    resume: () => invoke(IPC_CHANNELS.timerResume),
-    switchTask: (taskId) => invoke(IPC_CHANNELS.timerSwitchTask, taskId),
-    switchProject: (projectId) => invoke(IPC_CHANNELS.timerSwitchProject, projectId),
+    stop: (timerId) => invoke(IPC_CHANNELS.timerStop, timerId),
+    pause: (timerId) => invoke(IPC_CHANNELS.timerPause, timerId),
+    resume: (timerId) => invoke(IPC_CHANNELS.timerResume, timerId),
     getPendingIdlePrompt: () => invoke(IPC_CHANNELS.timerGetPendingIdlePrompt),
     resolveIdlePrompt: (resolution) => invoke(IPC_CHANNELS.timerResolveIdlePrompt, resolution),
     onChanged: (callback) => {
-      const listener = (_event: Electron.IpcRendererEvent, snapshot: Parameters<typeof callback>[0]): void =>
-        callback(snapshot)
+      const listener = (_event: Electron.IpcRendererEvent, snapshots: Parameters<typeof callback>[0]): void =>
+        callback(snapshots)
       ipcRenderer.on(IPC_CHANNELS.timerChangedEvent, listener)
       return () => ipcRenderer.removeListener(IPC_CHANNELS.timerChangedEvent, listener)
     },
@@ -69,7 +73,13 @@ const desktopApi: DesktopApi = {
   },
   settings: {
     get: () => invoke(IPC_CHANNELS.settingsGet),
-    update: (update) => invoke(IPC_CHANNELS.settingsUpdate, update)
+    update: (update) => invoke(IPC_CHANNELS.settingsUpdate, update),
+    onChanged: (callback) => {
+      const listener = (_event: Electron.IpcRendererEvent, settings: Parameters<typeof callback>[0]): void =>
+        callback(settings)
+      ipcRenderer.on(IPC_CHANNELS.settingsChangedEvent, listener)
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.settingsChangedEvent, listener)
+    }
   },
   reports: {
     getDashboardSummary: (referenceDate) => invoke(IPC_CHANNELS.reportsDashboardSummary, referenceDate),

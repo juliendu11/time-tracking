@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { computed } from 'vue'
 import { Doughnut } from 'vue-chartjs'
 import type { ChartData, ChartOptions } from 'chart.js'
@@ -7,6 +8,7 @@ import { formatDurationSpaced } from '@shared/utils/duration'
 
 const props = defineProps<{ slices: ProjectDistributionSlice[] }>()
 const emit = defineEmits<{ select: [projectId: string] }>()
+const { t } = useI18n()
 
 const chartData = computed<ChartData<'doughnut'>>(() => ({
   labels: props.slices.map((s) => s.projectName),
@@ -44,13 +46,13 @@ const total = computed(() => props.slices.reduce((sum, s) => sum + s.durationSec
 
 <template>
   <div class="rounded-xl border border-base-300 bg-base-200/40 p-4">
-    <h2 class="mb-3 text-sm font-semibold">Time by project</h2>
+    <h2 class="mb-3 text-sm font-semibold">{{ t('dashboard.distribution.title') }}</h2>
     <div v-if="slices.length > 0" class="flex items-center gap-4">
       <div class="relative h-36 w-36 shrink-0">
         <Doughnut :data="chartData" :options="chartOptions" />
         <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
           <span class="text-sm font-semibold">{{ formatDurationSpaced(total) }}</span>
-          <span class="text-[10px] text-base-content/50">this week</span>
+          <span class="text-[10px] text-base-content/50">{{ t('dashboard.distribution.thisWeek') }}</span>
         </div>
       </div>
       <ul class="min-w-0 flex-1 space-y-1.5">
@@ -66,6 +68,6 @@ const total = computed(() => props.slices.reduce((sum, s) => sum + s.durationSec
         </li>
       </ul>
     </div>
-    <p v-else class="py-8 text-center text-sm text-base-content/40">No data this week</p>
+    <p v-else class="py-8 text-center text-sm text-base-content/40">{{ t('dashboard.distribution.empty') }}</p>
   </div>
 </template>

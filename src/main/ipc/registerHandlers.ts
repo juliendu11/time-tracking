@@ -11,6 +11,8 @@ import type {
   TimeEntryInput,
   TimeEntryUpdate,
   TaskInput,
+  TaskFolderInput,
+  TaskFolderUpdate,
   TaskUpdate,
   TimeEntry,
   WeekStartsOn
@@ -25,6 +27,8 @@ import {
   startTimerSchema,
   tagInputSchema,
   taskInputSchema,
+  taskFolderInputSchema,
+  taskFolderUpdateSchema,
   taskUpdateSchema,
   timeEntryInputSchema,
   timeEntryUpdateSchema
@@ -36,6 +40,7 @@ import type { AppContext } from '@main/context'
 import { applyAccelerator } from '@main/shortcuts/globalShortcuts'
 import { toggleMiniTimerWindow } from '@main/windows/miniTimerWindow'
 import { applyLaunchAtStartup } from '@main/autostart'
+import { rebuildTrayMenu } from '@main/tray/tray'
 import type { NotificationService } from '@main/services/notification.service'
 
 function handle<Args extends unknown[], Result>(
@@ -56,8 +61,19 @@ function handle<Args extends unknown[], Result>(
 }
 
 export function registerIpcHandlers(context: AppContext, notifications: NotificationService): void {
-  const { projects, tasks, timeEntries, tags, settings, timer, reports, suggestions, search, backup } =
-    context
+  const {
+    projects,
+    tasks,
+    taskFolders,
+    timeEntries,
+    tags,
+    settings,
+    timer,
+    reports,
+    suggestions,
+    search,
+    backup
+  } = context
 
   // --- Projects ---------------------------------------------------------
   handle(IPC_CHANNELS.projectsList, (includeArchived?: boolean) =>
@@ -90,6 +106,18 @@ export function registerIpcHandlers(context: AppContext, notifications: Notifica
   )
   handle(IPC_CHANNELS.tasksArchive, (id: string) => tasks.archive(id))
   handle(IPC_CHANNELS.tasksDelete, (id: string) => tasks.delete(id))
+
+  // --- Task folders ---------------------------------------------------------
+  handle(IPC_CHANNELS.taskFoldersListByProject, (projectId: string) =>
+    taskFolders.listByProject(projectId)
+  )
+  handle(IPC_CHANNELS.taskFoldersCreate, (input: TaskFolderInput) =>
+    taskFolders.create(taskFolderInputSchema.parse(input))
+  )
+  handle(IPC_CHANNELS.taskFoldersUpdate, (id: string, update: TaskFolderUpdate) =>
+    taskFolders.update(id, taskFolderUpdateSchema.parse(update))
+  )
+  handle(IPC_CHANNELS.taskFoldersDelete, (id: string) => taskFolders.delete(id))
 
   // --- Time entries ---------------------------------------------------------
   handle(
@@ -125,17 +153,15 @@ export function registerIpcHandlers(context: AppContext, notifications: Notifica
   handle(IPC_CHANNELS.tagsDelete, (id: string) => tags.delete(id))
 
   // --- Timer ------------------------------------------------------------------
-  handle(IPC_CHANNELS.timerGetSnapshot, () => timer.getSnapshot())
+  handle(IPC_CHANNELS.timerGetSnapshots, () => timer.getSnapshots())
   handle(
     IPC_CHANNELS.timerStart,
     (params: { projectId: string; taskId?: string | null; description?: string | null }) =>
       timer.start(startTimerSchema.parse(params))
   )
-  handle(IPC_CHANNELS.timerStop, () => timer.stop())
-  handle(IPC_CHANNELS.timerPause, () => timer.pause())
-  handle(IPC_CHANNELS.timerResume, () => timer.resume())
-  handle(IPC_CHANNELS.timerSwitchTask, (taskId: string) => timer.switchTask(taskId))
-  handle(IPC_CHANNELS.timerSwitchProject, (projectId: string) => timer.switchProject(projectId))
+  handle(IPC_CHANNELS.timerStop, (timerId: string) => timer.stop(timerId))
+  handle(IPC_CHANNELS.timerPause, (timerId: string) => timer.pause(timerId))
+  handle(IPC_CHANNELS.timerResume, (timerId: string) => timer.resume(timerId))
   handle(IPC_CHANNELS.timerGetPendingIdlePrompt, () => timer.getPendingIdlePrompt())
   handle(IPC_CHANNELS.timerResolveIdlePrompt, (resolution: IdleResolution) =>
     timer.resolveIdlePrompt(idleResolutionSchema.parse(resolution))
@@ -153,10 +179,12 @@ export function registerIpcHandlers(context: AppContext, notifications: Notifica
   handle(IPC_CHANNELS.settingsUpdate, (update: AppSettingsUpdate) => {
     const next = settings.update(appSettingsUpdateSchema.parse(update))
     if (update.globalShortcutToggleTimer) applyAccelerator(context, next.globalShortcutToggleTimer)
-    if (update.showMiniTimer !== undefined) {
+    if (update.showMiniTimer !== undefined || update.miniTimerAlwaysOnTop !== undefined) {
       toggleMiniTimerWindow(next.showMiniTimer, next.miniTimerAlwaysOnTop)
     }
     if (update.launchAtStartup !== undefined) applyLaunchAtStartup(next.launchAtStartup)
+    if (update.language !== undefined) rebuildTrayMenu(context)
+    broadcast(IPC_CHANNELS.settingsChangedEvent, next)
     return next
   })
 

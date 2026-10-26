@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import type { Task, TimeEntry } from '@shared/types/domain'
 import { formatDurationSpaced } from '@shared/utils/duration'
@@ -12,6 +13,7 @@ const emit = defineEmits<{ close: [] }>()
 const projectsStore = useProjectsStore()
 const tasksStore = useTasksStore()
 const uiStore = useUiStore()
+const { t } = useI18n()
 
 function toLocalInputValue(iso: string): string {
   const d = new Date(iso)
@@ -69,20 +71,18 @@ async function checkOverlap(): Promise<void> {
   const end = new Date(form.endInput).toISOString()
   const result = await window.desktop.timeEntries.checkOverlap(start, end, props.entry?.id)
   if (result.hasOverlap) {
-    overlapWarning.value = `This overlaps with ${result.overlapping.length} existing entr${
-      result.overlapping.length > 1 ? 'ies' : 'y'
-    }.`
+    overlapWarning.value = t('manualEntry.overlap', result.overlapping.length)
   }
 }
 
 async function submit(): Promise<void> {
   error.value = null
   if (!form.projectId) {
-    error.value = 'Choose a project.'
+    error.value = t('manualEntry.errorProject')
     return
   }
   if (durationSeconds.value <= 0) {
-    error.value = 'End time must be after start time.'
+    error.value = t('manualEntry.errorEndBeforeStart')
     return
   }
 
@@ -103,10 +103,11 @@ async function submit(): Promise<void> {
     } else {
       await window.desktop.timeEntries.create(payload)
     }
-    uiStore.pushToast({ message: `Saved ${formatDurationSpaced(durationSeconds.value)}` })
+    uiStore.notifyDataChanged()
+    uiStore.pushToast({ message: t('timer.saved', { duration: formatDurationSpaced(durationSeconds.value) }) })
     emit('close')
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Unable to save the time entry.'
+    error.value = e instanceof Error ? e.message : t('manualEntry.errorSave')
   } finally {
     saving.value = false
   }
@@ -116,34 +117,34 @@ async function submit(): Promise<void> {
 <template>
   <div class="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4" @click.self="emit('close')">
     <div class="w-full max-w-md rounded-xl border border-base-300 bg-base-100 p-5 shadow-2xl">
-      <h2 class="mb-4 text-base font-semibold">{{ entry ? 'Edit time entry' : 'Add time manually' }}</h2>
+      <h2 class="mb-4 text-base font-semibold">{{ entry ? t('manualEntry.editTitle') : t('manualEntry.addTitle') }}</h2>
 
       <div class="space-y-3">
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="mb-1 block text-xs font-medium text-base-content/60">Project</label>
+            <label class="mb-1 block text-xs font-medium text-base-content/60">{{ t('common.project') }}</label>
             <select v-model="form.projectId" class="select select-bordered select-sm w-full">
-              <option value="" disabled>Choose project</option>
+              <option value="" disabled>{{ t('common.chooseProject') }}</option>
               <option v-for="p in projectsStore.activeProjects" :key="p.id" :value="p.id">{{ p.name }}</option>
             </select>
           </div>
           <div>
-            <label class="mb-1 block text-xs font-medium text-base-content/60">Task (optional)</label>
+            <label class="mb-1 block text-xs font-medium text-base-content/60">{{ t('manualEntry.taskOptional') }}</label>
             <select v-model="form.taskId" class="select select-bordered select-sm w-full">
-              <option :value="null">No task</option>
-              <option v-for="t in tasks" :key="t.id" :value="t.id">{{ t.name }}</option>
+              <option :value="null">{{ t('common.noTask') }}</option>
+              <option v-for="task in tasks" :key="task.id" :value="task.id">{{ task.name }}</option>
             </select>
           </div>
         </div>
 
         <div>
-          <label class="mb-1 block text-xs font-medium text-base-content/60">Description</label>
-          <input v-model="form.description" class="input input-bordered input-sm w-full" placeholder="What did you work on?" />
+          <label class="mb-1 block text-xs font-medium text-base-content/60">{{ t('common.description') }}</label>
+          <input v-model="form.description" class="input input-bordered input-sm w-full" :placeholder="t('manualEntry.descriptionPlaceholder')" />
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="mb-1 block text-xs font-medium text-base-content/60">Start</label>
+            <label class="mb-1 block text-xs font-medium text-base-content/60">{{ t('manualEntry.start') }}</label>
             <input
               v-model="form.startInput"
               type="datetime-local"
@@ -152,7 +153,7 @@ async function submit(): Promise<void> {
             />
           </div>
           <div>
-            <label class="mb-1 block text-xs font-medium text-base-content/60">End</label>
+            <label class="mb-1 block text-xs font-medium text-base-content/60">{{ t('manualEntry.end') }}</label>
             <input
               v-model="form.endInput"
               type="datetime-local"
@@ -162,7 +163,7 @@ async function submit(): Promise<void> {
           </div>
         </div>
 
-        <p class="text-sm text-base-content/70">Duration: <span class="font-medium">{{ durationLabel }}</span></p>
+        <p class="text-sm text-base-content/70">{{ t('manualEntry.duration') }} <span class="font-medium">{{ durationLabel }}</span></p>
 
         <div v-if="overlapWarning" class="rounded-lg bg-warning/15 px-3 py-2 text-xs text-warning-content">
           ⚠️ {{ overlapWarning }}
@@ -171,8 +172,8 @@ async function submit(): Promise<void> {
       </div>
 
       <div class="mt-5 flex justify-end gap-2">
-        <button class="btn btn-ghost btn-sm" @click="emit('close')">Cancel</button>
-        <button class="btn btn-primary btn-sm" :disabled="saving" @click="submit">Save</button>
+        <button class="btn btn-ghost btn-sm" @click="emit('close')">{{ t('common.cancel') }}</button>
+        <button class="btn btn-primary btn-sm" :disabled="saving" @click="submit">{{ t('common.save') }}</button>
       </div>
     </div>
   </div>

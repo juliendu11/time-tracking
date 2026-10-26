@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import {
@@ -14,6 +15,8 @@ import {
   Settings as SettingsIcon,
   Square,
   Table2,
+  Timer,
+  CalendarDays,
   PanelLeftClose,
   PanelLeftOpen
 } from '@lucide/vue'
@@ -27,6 +30,7 @@ import IdlePromptModal from '../features/timer/IdlePromptModal.vue'
 import ManualEntryModal from '../features/timer/ManualEntryModal.vue'
 import ToastContainer from '../components/ToastContainer.vue'
 import ProjectFormModal from '../features/projects/ProjectFormModal.vue'
+import LanguageSwitcher from '../components/LanguageSwitcher.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -34,6 +38,7 @@ const projectsStore = useProjectsStore()
 const tagsStore = useTagsStore()
 const timerStore = useTimerStore()
 const uiStore = useUiStore()
+const { t, te } = useI18n()
 
 const showProjectSwitcher = ref(false)
 const todaySeconds = ref(0)
@@ -63,11 +68,18 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 const navItems = [
-  { name: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { name: 'timeline', label: 'Timeline', icon: Clock },
-  { name: 'timesheet', label: 'Timesheet', icon: Table2 },
-  { name: 'reports', label: 'Reports', icon: ChartColumn }
-]
+  { name: 'dashboard', icon: LayoutDashboard },
+  { name: 'timers', icon: Timer },
+  { name: 'timeline', icon: Clock },
+  { name: 'calendar', icon: CalendarDays },
+  { name: 'timesheet', icon: Table2 },
+  { name: 'reports', icon: ChartColumn }
+] as const
+
+const pageTitle = computed(() => {
+  const name = String(route.name ?? '')
+  return te(`routes.${name}`) ? t(`routes.${name}`) : name
+})
 
 async function selectProject(id: string): Promise<void> {
   await projectsStore.setCurrent(id)
@@ -83,16 +95,18 @@ async function startFreeTimer(): Promise<void> {
   await timerStore.start({ projectId: projectsStore.currentProjectId })
 }
 
-async function stopTimer(): Promise<void> {
-  const entry = await timerStore.stop()
+async function stopTimer(timerId: string): Promise<void> {
+  const entry = await timerStore.stop(timerId)
   if (entry) {
-    uiStore.pushToast({ message: `Saved ${formatDurationSpaced(entry.durationSeconds)}`, timeoutMs: 4000 })
+    uiStore.pushToast({ message: t('timer.saved', { duration: formatDurationSpaced(entry.durationSeconds) }), timeoutMs: 4000 })
   }
   await refreshTodayForCurrentProject()
 }
 
-function goToProject(id: string): void {
-  router.push({ name: 'project-detail', params: { id } })
+async function goToProject(id: string): Promise<void> {
+  await projectsStore.setCurrent(id)
+  await refreshTodayForCurrentProject()
+  await router.push({ name: 'project-detail', params: { id } })
 }
 
 const hasProjects = computed(() => projectsStore.activeProjects.length > 0)
@@ -118,7 +132,7 @@ const hasProjects = computed(() => projectsStore.activeProjects.length > 0)
       <!-- Current project -->
       <div class="px-3 pb-3">
         <p v-if="!uiStore.sidebarCollapsed" class="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-wider text-base-content/50">
-          Current project
+          {{ t('layout.currentProject') }}
         </p>
         <div class="relative">
           <button
@@ -131,10 +145,10 @@ const hasProjects = computed(() => projectsStore.activeProjects.length > 0)
             />
             <span v-if="!uiStore.sidebarCollapsed" class="flex-1 truncate">
               <span class="block truncate text-sm font-medium">
-                {{ projectsStore.currentProject?.name ?? 'No project' }}
+                {{ projectsStore.currentProject?.name ?? t('layout.noProject') }}
               </span>
               <span class="block text-[11px] text-base-content/50">
-                {{ formatDurationSpaced(todaySeconds) }} today
+                {{ t('layout.today', { duration: formatDurationSpaced(todaySeconds) }) }}
               </span>
             </span>
             <ChevronDown v-if="!uiStore.sidebarCollapsed" :size="14" class="text-base-content/40" />
@@ -157,48 +171,63 @@ const hasProjects = computed(() => projectsStore.activeProjects.length > 0)
               class="mt-1 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-primary hover:bg-base-300/50"
               @click="showProjectSwitcher = false; uiStore.newProjectOpen = true"
             >
-              <Plus :size="14" /> New project
+              <Plus :size="14" /> {{ t('projects.new') }}
             </button>
           </div>
         </div>
       </div>
 
-      <!-- Active timer / start button -->
+      <!-- Active timers / start button -->
       <div class="px-3 pb-3">
-        <div v-if="timerStore.isRunning" class="rounded-lg border border-primary/30 bg-primary/10 p-3">
-          <p v-if="!uiStore.sidebarCollapsed" class="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary">
-            <span class="h-1.5 w-1.5 rounded-full bg-primary tt-pulse" />
-            Tracking
-          </p>
-          <template v-if="!uiStore.sidebarCollapsed">
-            <p class="truncate text-sm font-medium">{{ timerStore.snapshot?.project.name }}</p>
-            <p v-if="timerStore.snapshot?.task" class="truncate text-xs text-base-content/60">
-              {{ timerStore.snapshot?.task.name }}
-            </p>
-            <p class="mt-1 font-mono text-lg font-semibold tabular-nums">
-              {{ formatDurationClock(timerStore.elapsedSeconds) }}
-            </p>
-            <div class="mt-2 flex gap-1.5">
-              <button
-                class="btn btn-xs flex-1"
-                @click="timerStore.isPaused ? timerStore.resume() : timerStore.pause()"
-              >
-                <Pause v-if="!timerStore.isPaused" :size="12" />
-                <Play v-else :size="12" />
-                {{ timerStore.isPaused ? 'Resume' : 'Pause' }}
-              </button>
-              <button class="btn btn-xs btn-error flex-1" @click="stopTimer">
-                <Square :size="12" /> Stop
-              </button>
-            </div>
-          </template>
-          <button v-else class="btn btn-xs btn-error btn-square" @click="stopTimer">
-            <Square :size="12" />
-          </button>
+        <p
+          v-if="timerStore.isRunning && !uiStore.sidebarCollapsed"
+          class="flex items-center gap-1.5 px-1 text-[11px] font-semibold uppercase tracking-wider text-primary"
+        >
+          <span class="h-1.5 w-1.5 rounded-full bg-primary tt-pulse" />
+          {{ t('layout.activeTimers', timerStore.snapshots.length) }}
+        </p>
+        <div v-if="timerStore.isRunning" class="mt-2 max-h-[42vh] space-y-2 overflow-y-auto pr-1">
+          <div
+            v-for="snapshot in timerStore.snapshots"
+            :key="snapshot.timer.id"
+            class="rounded-lg border border-base-300 border-l-[3px] bg-base-100 p-3 shadow-sm"
+            :class="snapshot.isPaused ? 'opacity-65' : ''"
+            :style="{ borderLeftColor: snapshot.project.color }"
+            :title="uiStore.sidebarCollapsed ? `${snapshot.project.name} — ${snapshot.task?.name ?? t('common.noTask')}` : undefined"
+          >
+            <template v-if="!uiStore.sidebarCollapsed">
+              <div class="flex items-center gap-2">
+                <span class="h-2 w-2 shrink-0 rounded-full" :style="{ backgroundColor: snapshot.project.color }" />
+                <p class="truncate text-sm font-medium">{{ snapshot.project.name }}</p>
+              </div>
+              <p class="mt-0.5 truncate pl-4 text-xs text-base-content/60">
+                {{ snapshot.task?.name ?? t('common.noTask') }}
+              </p>
+              <p class="mt-1 font-mono text-lg font-semibold tabular-nums">
+                {{ formatDurationClock(timerStore.elapsedSeconds(snapshot.timer.id)) }}
+              </p>
+              <div class="mt-2 flex gap-1.5">
+                <button
+                  class="btn btn-xs flex-1"
+                  @click="snapshot.isPaused ? timerStore.resume(snapshot.timer.id) : timerStore.pause(snapshot.timer.id)"
+                >
+                  <Pause v-if="!snapshot.isPaused" :size="12" />
+                  <Play v-else :size="12" />
+                  {{ snapshot.isPaused ? t('timer.resume') : t('timer.pause') }}
+                </button>
+                <button class="btn btn-xs btn-error flex-1" @click="stopTimer(snapshot.timer.id)">
+                  <Square :size="12" /> {{ t('timer.stop') }}
+                </button>
+              </div>
+            </template>
+            <button v-else class="btn btn-xs btn-error btn-square" @click="stopTimer(snapshot.timer.id)">
+              <Square :size="12" />
+            </button>
+          </div>
         </div>
-        <button v-else class="btn btn-primary btn-sm w-full gap-1.5" @click="startFreeTimer">
+        <button class="btn btn-primary btn-sm mt-2 w-full gap-1.5" @click="startFreeTimer">
           <Play :size="14" />
-          <span v-if="!uiStore.sidebarCollapsed">Start timer</span>
+          <span v-if="!uiStore.sidebarCollapsed">{{ timerStore.isRunning ? t('timer.startAnother') : t('timer.start') }}</span>
         </button>
       </div>
 
@@ -215,13 +244,13 @@ const hasProjects = computed(() => projectsStore.activeProjects.length > 0)
           "
         >
           <component :is="item.icon" :size="17" />
-          <span v-if="!uiStore.sidebarCollapsed">{{ item.label }}</span>
+          <span v-if="!uiStore.sidebarCollapsed">{{ t(`routes.${item.name}`) }}</span>
         </RouterLink>
 
         <div class="pt-3">
           <div class="flex items-center justify-between px-2.5">
             <p v-if="!uiStore.sidebarCollapsed" class="text-[11px] font-semibold uppercase tracking-wider text-base-content/50">
-              Projects
+              {{ t('routes.projects') }}
             </p>
             <button class="btn btn-ghost btn-xs btn-square" @click="uiStore.newProjectOpen = true">
               <Plus :size="13" />
@@ -237,7 +266,7 @@ const hasProjects = computed(() => projectsStore.activeProjects.length > 0)
             "
           >
             <FolderKanban :size="17" />
-            <span v-if="!uiStore.sidebarCollapsed">All projects</span>
+            <span v-if="!uiStore.sidebarCollapsed">{{ t('layout.allProjects') }}</span>
           </RouterLink>
           <button
             v-for="project in projectsStore.activeProjects.slice(0, 8)"
@@ -249,7 +278,7 @@ const hasProjects = computed(() => projectsStore.activeProjects.length > 0)
             <span v-if="!uiStore.sidebarCollapsed" class="truncate">{{ project.name }}</span>
           </button>
           <p v-if="!hasProjects && !uiStore.sidebarCollapsed" class="px-2.5 py-1 text-xs text-base-content/40">
-            No projects yet
+            {{ t('layout.noProjectsYet') }}
           </p>
         </div>
       </nav>
@@ -265,22 +294,23 @@ const hasProjects = computed(() => projectsStore.activeProjects.length > 0)
           "
         >
           <SettingsIcon :size="17" />
-          <span v-if="!uiStore.sidebarCollapsed">Settings</span>
+          <span v-if="!uiStore.sidebarCollapsed">{{ t('routes.settings') }}</span>
         </RouterLink>
       </div>
     </aside>
 
     <div class="flex min-w-0 flex-1 flex-col">
       <header class="flex items-center justify-between border-b border-base-300 px-6 py-3">
-        <h1 class="text-lg font-semibold capitalize">{{ String(route.name ?? '') }}</h1>
+        <h1 class="text-lg font-semibold">{{ pageTitle }}</h1>
         <div class="flex items-center gap-2">
           <button class="btn btn-ghost btn-sm gap-1.5" @click="uiStore.manualEntryOpen = true">
-            <Plus :size="15" /> Add time
+            <Plus :size="15" /> {{ t('layout.addTime') }}
           </button>
           <button class="btn btn-ghost btn-sm gap-1.5" @click="uiStore.openCommandPalette()">
             <Search :size="15" />
             <span class="text-base-content/50">⌘K</span>
           </button>
+          <LanguageSwitcher />
         </div>
       </header>
 

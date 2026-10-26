@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { computed, onMounted, ref, watch } from 'vue'
 import type {
   AdditionalMetrics,
   DailyBucket,
@@ -11,6 +12,7 @@ import type {
   TopTaskEntry
 } from '@shared/types/domain'
 import { useProjectsStore } from '../../stores/projects'
+import { useUiStore } from '../../stores/ui'
 import DashboardHeader from './components/DashboardHeader.vue'
 import RecentEntriesList from './components/RecentEntriesList.vue'
 import LastSevenDaysChart from './components/LastSevenDaysChart.vue'
@@ -22,6 +24,8 @@ import FocusScoreCard from './components/FocusScoreCard.vue'
 import DayEntriesDrawer from './components/DayEntriesDrawer.vue'
 
 const projectsStore = useProjectsStore()
+const uiStore = useUiStore()
+const { t } = useI18n()
 
 const summary = ref<DashboardSummary | null>(null)
 const recentEntries = ref<TimeEntry[]>([])
@@ -37,9 +41,9 @@ const loading = ref(true)
 
 const greeting = computed(() => {
   const hour = new Date().getHours()
-  if (hour < 12) return 'Good morning'
-  if (hour < 18) return 'Good afternoon'
-  return 'Good evening'
+  if (hour < 12) return t('dashboard.greeting.morning')
+  if (hour < 18) return t('dashboard.greeting.afternoon')
+  return t('dashboard.greeting.evening')
 })
 
 async function loadAll(): Promise<void> {
@@ -90,6 +94,7 @@ function selectDistributionProject(projectId: string): void {
 }
 
 onMounted(loadAll)
+watch(() => uiStore.dataVersion, loadAll)
 defineExpose({ loadAll })
 </script>
 

@@ -1,4 +1,5 @@
 import {
+  type AnySQLiteColumn,
   index,
   integer,
   primaryKey,
@@ -25,6 +26,21 @@ export const projects = sqliteTable('projects', {
   archivedAt: text('archived_at')
 })
 
+export const taskFolders = sqliteTable(
+  'task_folders',
+  {
+    id: text('id').primaryKey(),
+    projectId: text('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    position: integer('position').notNull().default(0),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull()
+  },
+  (table) => [index('idx_task_folders_project_id').on(table.projectId)]
+)
+
 export const tasks = sqliteTable(
   'tasks',
   {
@@ -41,9 +57,31 @@ export const tasks = sqliteTable(
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
     completedAt: text('completed_at'),
-    archivedAt: text('archived_at')
+    archivedAt: text('archived_at'),
+    parentTaskId: text('parent_task_id').references((): AnySQLiteColumn => tasks.id, {
+      onDelete: 'set null'
+    })
   },
-  (table) => [index('idx_tasks_project_id').on(table.projectId)]
+  (table) => [
+    index('idx_tasks_project_id').on(table.projectId),
+    index('idx_tasks_parent_task_id').on(table.parentTaskId)
+  ]
+)
+
+export const taskFolderAssignments = sqliteTable(
+  'task_folder_assignments',
+  {
+    taskId: text('task_id')
+      .notNull()
+      .references(() => tasks.id, { onDelete: 'cascade' }),
+    folderId: text('folder_id')
+      .notNull()
+      .references(() => taskFolders.id, { onDelete: 'cascade' })
+  },
+  (table) => [
+    primaryKey({ columns: [table.taskId, table.folderId] }),
+    index('idx_task_folder_assignments_folder_id').on(table.folderId)
+  ]
 )
 
 export const timeEntries = sqliteTable(
@@ -147,10 +185,9 @@ export const appSettings = sqliteTable('app_settings', {
     .default(true)
 })
 
-/** Single-row table holding the one active timer in the whole app (id always 1). */
+/** All timers currently active in the app. */
 export const activeTimer = sqliteTable('active_timer', {
-  id: integer('id').primaryKey(),
-  timerId: text('timer_id').notNull(),
+  timerId: text('timer_id').primaryKey(),
   projectId: text('project_id')
     .notNull()
     .references(() => projects.id, { onDelete: 'cascade' }),

@@ -28,6 +28,9 @@ import type {
   Tag,
   TagInput,
   Task,
+  TaskFolder,
+  TaskFolderInput,
+  TaskFolderUpdate,
   TaskInput,
   TaskUpdate,
   TimeEntry,
@@ -64,6 +67,12 @@ export interface DesktopApi {
     archive(id: string): Promise<Task>
     delete(id: string): Promise<void>
   }
+  taskFolders: {
+    listByProject(projectId: string): Promise<TaskFolder[]>
+    create(input: TaskFolderInput): Promise<TaskFolder>
+    update(id: string, update: TaskFolderUpdate): Promise<TaskFolder>
+    delete(id: string): Promise<void>
+  }
   timeEntries: {
     listInRange(startDate: string, endDate: string, projectId?: string): Promise<TimeEntry[]>
     listRecent(limit: number): Promise<TimeEntry[]>
@@ -80,21 +89,21 @@ export interface DesktopApi {
     delete(id: string): Promise<void>
   }
   timer: {
-    getSnapshot(): Promise<RunningTimerSnapshot | null>
+    getSnapshots(): Promise<RunningTimerSnapshot[]>
     start(params: { projectId: string; taskId?: string | null; description?: string | null }): Promise<RunningTimerSnapshot>
-    stop(): Promise<TimeEntry | null>
-    pause(): Promise<RunningTimerSnapshot>
-    resume(): Promise<RunningTimerSnapshot>
-    switchTask(taskId: string): Promise<RunningTimerSnapshot>
-    switchProject(projectId: string): Promise<RunningTimerSnapshot>
+    stop(timerId: string): Promise<TimeEntry | null>
+    pause(timerId: string): Promise<RunningTimerSnapshot>
+    resume(timerId: string): Promise<RunningTimerSnapshot>
     getPendingIdlePrompt(): Promise<IdlePromptPayload | null>
-    resolveIdlePrompt(resolution: IdleResolution): Promise<TimeEntry | null>
-    onChanged(callback: (snapshot: RunningTimerSnapshot | null) => void): () => void
+    resolveIdlePrompt(resolution: IdleResolution): Promise<TimeEntry[]>
+    onChanged(callback: (snapshots: RunningTimerSnapshot[]) => void): () => void
     onIdleDetected(callback: (payload: IdlePromptPayload) => void): () => void
   }
   settings: {
     get(): Promise<AppSettings>
     update(update: AppSettingsUpdate): Promise<AppSettings>
+    /** Fires in every window after any settings change, so secondary windows stay in sync. */
+    onChanged(callback: (settings: AppSettings) => void): () => void
   }
   reports: {
     getDashboardSummary(referenceDate: string): Promise<DashboardSummary>
@@ -154,6 +163,11 @@ export const IPC_CHANNELS = {
   tasksArchive: 'tasks:archive',
   tasksDelete: 'tasks:delete',
 
+  taskFoldersListByProject: 'taskFolders:listByProject',
+  taskFoldersCreate: 'taskFolders:create',
+  taskFoldersUpdate: 'taskFolders:update',
+  taskFoldersDelete: 'taskFolders:delete',
+
   timeEntriesListInRange: 'timeEntries:listInRange',
   timeEntriesListRecent: 'timeEntries:listRecent',
   timeEntriesListByTask: 'timeEntries:listByTask',
@@ -167,13 +181,11 @@ export const IPC_CHANNELS = {
   tagsCreate: 'tags:create',
   tagsDelete: 'tags:delete',
 
-  timerGetSnapshot: 'timer:getSnapshot',
+  timerGetSnapshots: 'timer:getSnapshots',
   timerStart: 'timer:start',
   timerStop: 'timer:stop',
   timerPause: 'timer:pause',
   timerResume: 'timer:resume',
-  timerSwitchTask: 'timer:switchTask',
-  timerSwitchProject: 'timer:switchProject',
   timerGetPendingIdlePrompt: 'timer:getPendingIdlePrompt',
   timerResolveIdlePrompt: 'timer:resolveIdlePrompt',
   timerChangedEvent: 'timer:changed',
@@ -181,6 +193,7 @@ export const IPC_CHANNELS = {
 
   settingsGet: 'settings:get',
   settingsUpdate: 'settings:update',
+  settingsChangedEvent: 'settings:changed',
 
   reportsDashboardSummary: 'reports:dashboardSummary',
   reportsLastNDays: 'reports:lastNDays',

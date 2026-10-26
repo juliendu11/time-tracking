@@ -1,20 +1,25 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
+  CalendarDays,
   ChartColumn,
   Clock,
   FolderKanban,
   LayoutDashboard,
+  Languages,
   Moon,
   Plus,
   Settings as SettingsIcon,
   Square,
   Sun,
   Table2,
+  Timer,
   type LucideIcon
 } from '@lucide/vue'
 import type { SearchResultItem, SmartSuggestion } from '@shared/types/domain'
+import { LANGUAGE_NAMES } from '../../i18n'
 import { useProjectsStore } from '../../stores/projects'
 import { useSettingsStore } from '../../stores/settings'
 import { useTimerStore } from '../../stores/timer'
@@ -33,6 +38,7 @@ const uiStore = useUiStore()
 const projectsStore = useProjectsStore()
 const timerStore = useTimerStore()
 const settingsStore = useSettingsStore()
+const { t, locale } = useI18n()
 
 const query = ref('')
 const activeIndex = ref(0)
@@ -77,17 +83,25 @@ async function goTo(name: string): Promise<void> {
   close()
 }
 
+function goToLabel(route: 'dashboard' | 'timers' | 'timeline' | 'calendar' | 'timesheet' | 'reports' | 'projects' | 'settings'): string {
+  return t('palette.goTo', { page: t(`routes.${route}`) })
+}
+
+const otherLanguage = computed(() => (locale.value === 'fr' ? 'en' : 'fr'))
+
 const staticActions = computed<PaletteItem[]>(() => {
   const items: Array<PaletteItem | null> = [
-  { id: 'nav-dashboard', label: 'Go to Dashboard', icon: LayoutDashboard, run: () => goTo('dashboard') },
-  { id: 'nav-timeline', label: 'Go to Timeline', icon: Clock, run: () => goTo('timeline') },
-  { id: 'nav-timesheet', label: 'Go to Timesheet', icon: Table2, run: () => goTo('timesheet') },
-  { id: 'nav-reports', label: 'Go to Reports', icon: ChartColumn, run: () => goTo('reports') },
-  { id: 'nav-projects', label: 'Go to Projects', icon: FolderKanban, run: () => goTo('projects') },
-  { id: 'nav-settings', label: 'Go to Settings', icon: SettingsIcon, run: () => goTo('settings') },
+  { id: 'nav-dashboard', label: goToLabel('dashboard'), icon: LayoutDashboard, run: () => goTo('dashboard') },
+  { id: 'nav-timers', label: goToLabel('timers'), icon: Timer, run: () => goTo('timers') },
+  { id: 'nav-timeline', label: goToLabel('timeline'), icon: Clock, run: () => goTo('timeline') },
+  { id: 'nav-calendar', label: goToLabel('calendar'), icon: CalendarDays, run: () => goTo('calendar') },
+  { id: 'nav-timesheet', label: goToLabel('timesheet'), icon: Table2, run: () => goTo('timesheet') },
+  { id: 'nav-reports', label: goToLabel('reports'), icon: ChartColumn, run: () => goTo('reports') },
+  { id: 'nav-projects', label: goToLabel('projects'), icon: FolderKanban, run: () => goTo('projects') },
+  { id: 'nav-settings', label: goToLabel('settings'), icon: SettingsIcon, run: () => goTo('settings') },
   {
     id: 'create-project',
-    label: 'Create project',
+    label: t('palette.createProject'),
     icon: Plus,
     run: () => {
       uiStore.newProjectOpen = true
@@ -96,7 +110,7 @@ const staticActions = computed<PaletteItem[]>(() => {
   },
   {
     id: 'add-time',
-    label: 'Add manual time',
+    label: t('palette.addManualTime'),
     icon: Plus,
     run: () => {
       uiStore.manualEntryOpen = true
@@ -106,21 +120,30 @@ const staticActions = computed<PaletteItem[]>(() => {
   timerStore.isRunning
     ? {
         id: 'stop-timer',
-        label: 'Stop timer',
+        label: t('palette.stopAll', { count: timerStore.snapshots.length }),
         icon: Square,
         run: async () => {
-          await timerStore.stop()
+          await Promise.all(timerStore.snapshots.map((snapshot) => timerStore.stop(snapshot.timer.id)))
           close()
         }
       }
     : null,
     {
       id: 'toggle-theme',
-      label: 'Toggle theme',
+      label: t('palette.toggleTheme'),
       icon: settingsStore.effectiveTheme === 'dark' ? Sun : Moon,
       run: async () => {
         const next = settingsStore.effectiveTheme === 'dark' ? 'light' : 'dark'
         await settingsStore.update({ theme: next })
+        close()
+      }
+    },
+    {
+      id: 'switch-language',
+      label: t('palette.switchLanguage', { language: LANGUAGE_NAMES[otherLanguage.value] }),
+      icon: Languages,
+      run: async () => {
+        await settingsStore.update({ language: otherLanguage.value })
         close()
       }
     }
@@ -138,11 +161,10 @@ const suggestionItems = computed<PaletteItem[]>(() =>
   suggestions.value.map((s) => ({
     id: `sugg-${s.projectId}-${s.taskId ?? 'none'}`,
     label: s.taskId ? `${s.projectName} / ${s.taskName}` : s.projectName,
-    hint: 'Start',
+    hint: t('palette.start'),
     icon: FolderKanban,
     run: async () => {
-      if (s.taskId) await timerStore.switchTask(s.taskId)
-      else await timerStore.switchProject(s.projectId)
+      await timerStore.start({ projectId: s.projectId, taskId: s.taskId })
       close()
     }
   }))
@@ -152,14 +174,15 @@ const searchItems = computed<PaletteItem[]>(() =>
   searchResults.value.map((r) => ({
     id: `search-${r.kind}-${r.id}`,
     label: r.title,
-    hint: r.subtitle ?? r.kind,
+    hint: r.subtitle ?? t(`search.kinds.${r.kind}`),
     icon: FolderKanban,
     run: async () => {
       if (r.kind === 'project') {
         await projectsStore.setCurrent(r.id)
         await router.push({ name: 'project-detail', params: { id: r.id } })
       } else if (r.kind === 'task') {
-        await timerStore.switchTask(r.id)
+        const task = await window.desktop.tasks.get(r.id)
+        if (task) await timerStore.start({ projectId: task.projectId, taskId: task.id })
       }
       close()
     }
@@ -199,7 +222,7 @@ function onKeydown(event: KeyboardEvent): void {
         ref="inputRef"
         v-model="query"
         type="text"
-        placeholder="Search projects, tasks, or type a command…"
+        :placeholder="t('palette.placeholder')"
         class="w-full border-b border-base-300 bg-transparent px-4 py-3 text-sm outline-none"
         @keydown="onKeydown"
       />
@@ -217,7 +240,7 @@ function onKeydown(event: KeyboardEvent): void {
           <span v-if="item.hint" class="text-xs text-base-content/40">{{ item.hint }}</span>
         </button>
         <p v-if="items.length === 0" class="px-3 py-6 text-center text-sm text-base-content/40">
-          No results
+          {{ t('palette.noResults') }}
         </p>
       </div>
     </div>

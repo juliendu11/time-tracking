@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import type { AppDatabase } from '@main/db/client'
 import { appSettings } from '@main/db/schema'
+import { isSupportedLanguage } from '@shared/types/domain'
 import type {
   AppSettings,
   AppSettingsUpdate,
@@ -16,7 +17,7 @@ type SettingsRow = typeof appSettings.$inferSelect
 function toDomain(row: SettingsRow): AppSettings {
   return {
     theme: row.theme as ThemePreference,
-    language: row.language,
+    language: isSupportedLanguage(row.language) ? row.language : 'en',
     weekStartsOn: row.weekStartsOn as WeekStartsOn,
     timeFormat: row.timeFormat as TimeFormat,
     dateFormat: row.dateFormat as DateFormat,

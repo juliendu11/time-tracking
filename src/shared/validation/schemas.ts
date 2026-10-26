@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { SUPPORTED_LANGUAGES } from '@shared/types/domain'
 
 const isoDate = z.string().refine((v) => !Number.isNaN(new Date(v).getTime()), 'Invalid date')
 
@@ -25,8 +26,18 @@ export const projectUpdateSchema = projectInputSchema.partial()
 export const taskStatusSchema = z.enum(['todo', 'in_progress', 'done', 'archived'])
 export const taskPrioritySchema = z.enum(['low', 'normal', 'high', 'urgent'])
 
+export const taskFolderInputSchema = z.object({
+  projectId: z.string().min(1),
+  name: z.string().trim().min(1, 'Folder name is required').max(100),
+  position: z.number().int().nonnegative().optional()
+})
+
+export const taskFolderUpdateSchema = taskFolderInputSchema.omit({ projectId: true }).partial()
+
 export const taskInputSchema = z.object({
   projectId: z.string().min(1),
+  folderIds: z.array(z.string().min(1)).optional(),
+  parentTaskId: z.string().min(1).nullable().optional(),
   name: z.string().trim().min(1, 'Task name is required').max(200),
   description: z.string().max(2000).nullable().optional(),
   status: taskStatusSchema.optional(),
@@ -79,7 +90,7 @@ export const tagInputSchema = z.object({
 export const appSettingsUpdateSchema = z
   .object({
     theme: z.enum(['system', 'light', 'dark']),
-    language: z.string().min(2).max(10),
+    language: z.enum(SUPPORTED_LANGUAGES),
     weekStartsOn: z.union([z.literal(0), z.literal(1)]),
     timeFormat: z.enum(['24h', '12h']),
     dateFormat: z.enum(['iso', 'us', 'eu']),

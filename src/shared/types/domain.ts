@@ -44,9 +44,26 @@ export type ProjectUpdate = Partial<ProjectInput>
 export type TaskStatus = 'todo' | 'in_progress' | 'done' | 'archived'
 export type TaskPriority = 'low' | 'normal' | 'high' | 'urgent'
 
+export interface TaskFolder {
+  id: string
+  projectId: string
+  name: string
+  position: number
+  createdAt: string
+  updatedAt: string
+}
+
+export type TaskFolderInput = Pick<TaskFolder, 'projectId' | 'name'> &
+  Partial<Pick<TaskFolder, 'position'>>
+
+export type TaskFolderUpdate = Partial<Pick<TaskFolder, 'name' | 'position'>>
+
 export interface Task {
   id: string
   projectId: string
+  folderIds: string[]
+  /** Parent task in the same project; a parent cannot be done until all its children are. */
+  parentTaskId: string | null
   name: string
   description: string | null
   status: TaskStatus
@@ -63,7 +80,13 @@ export type TaskInput = Pick<Task, 'projectId' | 'name'> &
   Partial<
     Pick<
       Task,
-      'description' | 'status' | 'priority' | 'estimatedMinutes' | 'isFavorite'
+      | 'folderIds'
+      | 'parentTaskId'
+      | 'description'
+      | 'status'
+      | 'priority'
+      | 'estimatedMinutes'
+      | 'isFavorite'
     >
   >
 
@@ -117,9 +140,17 @@ export type TimeFormat = '24h' | '12h'
 export type DateFormat = 'iso' | 'us' | 'eu'
 export type QuickSwitchBehavior = 'atomic_switch' | 'ask_to_stop'
 
+/** UI languages the app ships translations for. */
+export const SUPPORTED_LANGUAGES = ['en', 'fr'] as const
+export type Language = (typeof SUPPORTED_LANGUAGES)[number]
+
+export function isSupportedLanguage(value: string): value is Language {
+  return (SUPPORTED_LANGUAGES as readonly string[]).includes(value)
+}
+
 export interface AppSettings {
   theme: ThemePreference
-  language: string
+  language: Language
   weekStartsOn: WeekStartsOn
   timeFormat: TimeFormat
   dateFormat: DateFormat
@@ -149,7 +180,7 @@ export interface AppSettings {
 
 export type AppSettingsUpdate = Partial<AppSettings>
 
-/** The single active timer in the whole application, persisted in SQLite. */
+/** One of the active timers in the application, persisted in SQLite. */
 export interface ActiveTimerState {
   id: string
   projectId: string
@@ -176,7 +207,8 @@ export interface RunningTimerSnapshot {
 export interface IdlePromptPayload {
   idleStartedAt: string
   idleSeconds: number
-  timer: ActiveTimerState
+  /** Timers that were running when the idle period was detected. */
+  timers: ActiveTimerState[]
 }
 
 export type IdleResolution = 'discard' | 'keep' | 'split'
@@ -308,6 +340,7 @@ export interface ExportBundle {
   exportedAt: string
   version: number
   projects: Project[]
+  taskFolders: TaskFolder[]
   tasks: Task[]
   timeEntries: TimeEntry[]
   tags: Tag[]

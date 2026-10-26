@@ -15,6 +15,12 @@ export const useUiStore = defineStore('ui', () => {
   const manualEntryOpen = ref(false)
   const newProjectOpen = ref(false)
   const toasts = ref<Toast[]>([])
+  /** Bumped whenever tracked time changes so open pages can reload. */
+  const dataVersion = ref(0)
+
+  function notifyDataChanged(): void {
+    dataVersion.value++
+  }
 
   function openCommandPalette(): void {
     commandPaletteOpen.value = true
@@ -43,6 +49,8 @@ export const useUiStore = defineStore('ui', () => {
     manualEntryOpen,
     newProjectOpen,
     toasts,
+    dataVersion,
+    notifyDataChanged,
     openCommandPalette,
     closeCommandPalette,
     toggleSidebar,

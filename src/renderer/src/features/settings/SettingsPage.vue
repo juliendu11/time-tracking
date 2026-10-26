@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import {onMounted, ref} from 'vue'
-import type {AppSettingsUpdate, BackupFileInfo} from '@shared/types/domain'
+import {useI18n} from 'vue-i18n'
+import {SUPPORTED_LANGUAGES, type AppSettingsUpdate, type BackupFileInfo, type Language} from '@shared/types/domain'
+import {LANGUAGE_NAMES, weekdayName} from '../../i18n'
 import {useProjectsStore} from '../../stores/projects'
 import {useSettingsStore} from '../../stores/settings'
 import {useUiStore} from '../../stores/ui'
@@ -9,21 +11,12 @@ import BaseCheckBox from "@renderer/components/BaseCheckBox.vue";
 const settingsStore = useSettingsStore()
 const projectsStore = useProjectsStore()
 const uiStore = useUiStore()
+const {t, locale} = useI18n()
 
 type Tab = 'general' | 'appearance' | 'timer' | 'idle' | 'goals' | 'shortcuts' | 'backup' | 'advanced' | 'about'
 const tab = ref<Tab>('general')
 
-const tabs: { id: Tab; label: string }[] = [
-  {id: 'general', label: 'General'},
-  {id: 'appearance', label: 'Appearance'},
-  {id: 'timer', label: 'Timer'},
-  {id: 'idle', label: 'Idle detection'},
-  {id: 'goals', label: 'Goals'},
-  {id: 'shortcuts', label: 'Shortcuts'},
-  {id: 'backup', label: 'Backup & Data'},
-  {id: 'advanced', label: 'Advanced'},
-  {id: 'about', label: 'About'}
-]
+const tabs: Tab[] = ['general', 'appearance', 'timer', 'idle', 'goals', 'shortcuts', 'backup', 'advanced', 'about']
 
 const backups = ref<BackupFileInfo[]>([])
 const appVersion = ref('')
@@ -44,11 +37,11 @@ async function set(patch: AppSettingsUpdate): Promise<void> {
 async function createBackup(): Promise<void> {
   await window.desktop.backup.createNow()
   backups.value = await window.desktop.backup.list()
-  uiStore.pushToast({message: 'Backup created'})
+  uiStore.pushToast({message: t('settings.backup.created')})
 }
 
 async function restoreBackup(filePath: string): Promise<void> {
-  if (!window.confirm('Restore this backup? Your current data will be safety-backed-up first, then the app will restart.')) {
+  if (!window.confirm(t('settings.backup.confirmRestore'))) {
     return
   }
   await window.desktop.backup.restore(filePath)
@@ -61,12 +54,12 @@ async function pickAndRestore(): Promise<void> {
 
 async function exportJson(): Promise<void> {
   const path = await window.desktop.backup.exportJson()
-  uiStore.pushToast({message: `Exported to ${path}`})
+  uiStore.pushToast({message: t('settings.backup.exported', {path})})
 }
 
 async function exportCsv(): Promise<void> {
   const path = await window.desktop.backup.exportCsv()
-  uiStore.pushToast({message: `Exported to ${path}`})
+  uiStore.pushToast({message: t('settings.backup.exported', {path})})
 }
 
 async function openBackupFolder(): Promise<void> {
@@ -79,9 +72,7 @@ async function openLogsFolder(): Promise<void> {
 
 async function resetAllData(): Promise<void> {
   if (
-    !window.confirm(
-      'Delete ALL projects, tasks, time entries and tags? A safety backup will be created first, then the app will restart. This cannot be undone from the UI.'
-    )
+    !window.confirm(t('settings.backup.confirmReset'))
   ) {
     return
   }
@@ -91,7 +82,7 @@ async function resetAllData(): Promise<void> {
 async function sendTestNotification(): Promise<void> {
   const supported = await window.desktop.notifications.sendTest()
   uiStore.pushToast({
-    message: supported ? 'Test notification sent' : 'Notifications are not supported on this system'
+    message: supported ? t('settings.general.testSent') : t('settings.general.testUnsupported')
   })
 }
 </script>
@@ -100,118 +91,125 @@ async function sendTestNotification(): Promise<void> {
   <div class="mx-auto flex max-w-4xl gap-8 p-6">
     <nav class="w-40 shrink-0 space-y-0.5">
       <button
-        v-for="t in tabs"
-        :key="t.id"
+        v-for="id in tabs"
+        :key="id"
         class="block w-full rounded-lg px-3 py-1.5 text-left text-sm"
-        :class="tab === t.id ? 'bg-primary/15 text-primary font-medium' : 'text-base-content/70 hover:bg-base-300/40'"
-        @click="tab = t.id"
+        :class="tab === id ? 'bg-primary/15 text-primary font-medium' : 'text-base-content/70 hover:bg-base-300/40'"
+        @click="tab = id"
       >
-        {{ t.label }}
+        {{ t(`settings.tabs.${id}`) }}
       </button>
     </nav>
 
     <div v-if="settingsStore.settings" class="min-w-0 flex-1 space-y-4">
       <section v-if="tab === 'general'" class="space-y-4">
-        <h2 class="text-base font-semibold">General</h2>
+        <h2 class="text-base font-semibold">{{ t('settings.tabs.general') }}</h2>
         <div class="form-control">
-          <label class="label"><span class="label-text">Default project</span></label>
+          <label class="label"><span class="label-text">{{ t('settings.general.defaultProject') }}</span></label>
           <select
             class="select select-bordered select-sm w-64 "
             :value="settingsStore.settings.defaultProjectId ?? ''"
             @change="set({ defaultProjectId: ($event.target as HTMLSelectElement).value || null })"
           >
-            <option value="">None</option>
+            <option value="">{{ t('settings.general.none') }}</option>
             <option v-for="p in projectsStore.activeProjects" :key="p.id" :value="p.id">{{ p.name }}</option>
           </select>
         </div>
         <div class="grid grid-cols-2 gap-5">
           <BaseCheckBox
-            label="Minimize to tray instead of quitting"
+            :label="t('settings.general.minimizeToTray')"
             :checked="settingsStore.settings.minimizeToTray"
             @change="set({ minimizeToTray: ($event.target as HTMLInputElement).checked })"
           />
           <BaseCheckBox
-            label="Launch at startup"
+            :label="t('settings.general.launchAtStartup')"
             :checked="settingsStore.settings.launchAtStartup"
             @change="set({ launchAtStartup: ($event.target as HTMLInputElement).checked })"
           />
           <BaseCheckBox
-            label="Confirm before deleting a time entry"
+            :label="t('settings.general.confirmDelete')"
             :checked="settingsStore.settings.confirmBeforeDeletingEntry"
             @change="set({ confirmBeforeDeletingEntry: ($event.target as HTMLInputElement).checked })"
           />
           <BaseCheckBox
-            label="Desktop notifications"
+            :label="t('settings.general.notifications')"
             :checked="settingsStore.settings.notificationsEnabled"
             @change="set({ notificationsEnabled: ($event.target as HTMLInputElement).checked })"
           />
         </div>
-        <button class="btn btn-sm" @click="sendTestNotification">Send test notification</button>
+        <button class="btn btn-sm" @click="sendTestNotification">{{ t('settings.general.sendTest') }}</button>
       </section>
 
       <section v-else-if="tab === 'appearance'" class="space-y-4">
-        <h2 class="text-base font-semibold">Appearance</h2>
+        <h2 class="text-base font-semibold">{{ t('settings.tabs.appearance') }}</h2>
         <div class="form-control">
-          <label class="label"><span class="label-text">Theme</span></label>
+          <label class="label" for="settings-language"><span class="label-text">{{ t('settings.language.label') }}</span></label>
+          <select
+            id="settings-language"
+            class="select select-bordered select-sm w-40"
+            :value="settingsStore.settings.language"
+            @change="set({ language: ($event.target as HTMLSelectElement).value as Language })"
+          >
+            <option v-for="language in SUPPORTED_LANGUAGES" :key="language" :value="language" :lang="language">
+              {{ LANGUAGE_NAMES[language] }}
+            </option>
+          </select>
+          <p class="mt-1 text-xs text-base-content/50">{{ t('settings.language.hint') }}</p>
+        </div>
+        <div class="form-control">
+          <label class="label"><span class="label-text">{{ t('settings.appearance.theme') }}</span></label>
           <div class="flex gap-2">
             <button
               v-for="opt in (['system', 'light', 'dark'] as const)"
               :key="opt"
-              class="btn btn-sm capitalize"
+              class="btn btn-sm"
               :class="settingsStore.settings.theme === opt ? 'btn-primary' : 'btn-ghost border border-base-300'"
               @click="set({ theme: opt })"
             >
-              {{ opt }}
+              {{ t(`settings.appearance.themes.${opt}`) }}
             </button>
           </div>
         </div>
         <div class="form-control">
-          <label class="label"><span class="label-text">Week starts on</span></label>
+          <label class="label"><span class="label-text">{{ t('settings.appearance.weekStartsOn') }}</span></label>
           <select
             class="select select-bordered select-sm w-40"
             :value="settingsStore.settings.weekStartsOn"
             @change="set({ weekStartsOn: Number(($event.target as HTMLSelectElement).value) as 0 | 1 })"
           >
-            <option :value="1">Monday</option>
-            <option :value="0">Sunday</option>
+            <option :value="1">{{ weekdayName(1, locale) }}</option>
+            <option :value="0">{{ weekdayName(0, locale) }}</option>
           </select>
         </div>
         <div class="form-control">
-          <label class="label"><span class="label-text">Time format</span></label>
+          <label class="label"><span class="label-text">{{ t('settings.appearance.timeFormat') }}</span></label>
           <select
             class="select select-bordered select-sm w-40"
             :value="settingsStore.settings.timeFormat"
             @change="set({ timeFormat: ($event.target as HTMLSelectElement).value as '24h' | '12h' })"
           >
-            <option value="24h">24-hour</option>
-            <option value="12h">12-hour</option>
+            <option value="24h">{{ t('settings.appearance.hours24') }}</option>
+            <option value="12h">{{ t('settings.appearance.hours12') }}</option>
           </select>
         </div>
       </section>
 
       <section v-else-if="tab === 'timer'" class="space-y-4">
-        <h2 class="text-base font-semibold">Timer</h2>
-        <div class="form-control">
-          <label class="label"><span
-            class="label-text"
-          >When starting a timer while one is already running</span></label>
-          <select
-            class="select select-bordered select-sm w-72"
-            :value="settingsStore.settings.quickSwitchBehavior"
-            @change="set({ quickSwitchBehavior: ($event.target as HTMLSelectElement).value as 'atomic_switch' | 'ask_to_stop' })"
-          >
-            <option value="atomic_switch">Switch immediately (stop old, start new)</option>
-            <option value="ask_to_stop">Ask for confirmation first</option>
-          </select>
+        <h2 class="text-base font-semibold">{{ t('settings.tabs.timer') }}</h2>
+        <div class="rounded-lg border border-base-300 bg-base-200/40 p-3">
+          <p class="text-sm font-medium">{{ t('settings.timer.parallelTitle') }}</p>
+          <p class="mt-1 text-xs text-base-content/60">
+            {{ t('settings.timer.parallelBody') }}
+          </p>
         </div>
         <div class="grid grid-cols-2 gap-5">
           <BaseCheckBox
-            label="Show mini timer window"
+            :label="t('settings.timer.showMiniTimer')"
             :checked="settingsStore.settings.showMiniTimer"
             @change="set({ showMiniTimer: ($event.target as HTMLInputElement).checked })"
           />
           <BaseCheckBox
-            label="Mini timer always on top"
+            :label="t('settings.timer.miniTimerOnTop')"
             :checked="settingsStore.settings.miniTimerAlwaysOnTop"
             @change="set({ miniTimerAlwaysOnTop: ($event.target as HTMLInputElement).checked })"
           />
@@ -220,14 +218,14 @@ async function sendTestNotification(): Promise<void> {
         <div class="divider" />
         <div class="grid grid-cols-2 gap-5">
           <BaseCheckBox
-            label="Enable Pomodoro"
+            :label="t('settings.timer.enablePomodoro')"
             :checked="settingsStore.settings.pomodoroEnabled"
             @change="set({ pomodoroEnabled: ($event.target as HTMLInputElement).checked })"
           />
         </div>
         <div v-if="settingsStore.settings.pomodoroEnabled" class="grid grid-cols-3 gap-3">
           <div class="form-control">
-            <label class="label"><span class="label-text text-xs">Focus (min)</span></label>
+            <label class="label"><span class="label-text text-xs">{{ t('settings.timer.focus') }}</span></label>
             <input
               type="number"
               class="input input-bordered input-sm"
@@ -236,7 +234,7 @@ async function sendTestNotification(): Promise<void> {
             />
           </div>
           <div class="form-control">
-            <label class="label"><span class="label-text text-xs">Break (min)</span></label>
+            <label class="label"><span class="label-text text-xs">{{ t('settings.timer.break') }}</span></label>
             <input
               type="number"
               class="input input-bordered input-sm"
@@ -245,7 +243,7 @@ async function sendTestNotification(): Promise<void> {
             />
           </div>
           <div class="form-control">
-            <label class="label"><span class="label-text text-xs">Long break (min)</span></label>
+            <label class="label"><span class="label-text text-xs">{{ t('settings.timer.longBreak') }}</span></label>
             <input
               type="number"
               class="input input-bordered input-sm"
@@ -257,14 +255,14 @@ async function sendTestNotification(): Promise<void> {
       </section>
 
       <section v-else-if="tab === 'idle'" class="space-y-4">
-        <h2 class="text-base font-semibold">Idle detection</h2>
+        <h2 class="text-base font-semibold">{{ t('settings.tabs.idle') }}</h2>
         <BaseCheckBox
-          label="Detect when I'm away from the keyboard"
+          :label="t('settings.idle.detect')"
           :checked="settingsStore.settings.idleDetectionEnabled"
           @change="set({ idleDetectionEnabled: ($event.target as HTMLInputElement).checked })"
         />
         <div class="form-control">
-          <label class="label"><span class="label-text">Idle threshold (minutes)</span></label>
+          <label class="label"><span class="label-text">{{ t('settings.idle.threshold') }}</span></label>
           <input
             type="number"
             min="1"
@@ -274,15 +272,15 @@ async function sendTestNotification(): Promise<void> {
           />
         </div>
         <p class="text-xs text-base-content/50">
-          We never silently remove tracked time — you'll always be asked what to do when you return from being idle.
+          {{ t('settings.idle.hint') }}
         </p>
       </section>
 
       <section v-else-if="tab === 'goals'" class="space-y-4">
-        <h2 class="text-base font-semibold">Goals</h2>
+        <h2 class="text-base font-semibold">{{ t('settings.tabs.goals') }}</h2>
         <div class="grid grid-cols-2 gap-4">
           <div class="form-control">
-            <label class="label"><span class="label-text">Daily goal (minutes)</span></label>
+            <label class="label"><span class="label-text">{{ t('settings.goals.daily') }}</span></label>
             <input
               type="number"
               class="input input-bordered input-sm"
@@ -291,7 +289,7 @@ async function sendTestNotification(): Promise<void> {
             />
           </div>
           <div class="form-control">
-            <label class="label"><span class="label-text">Weekly goal (minutes)</span></label>
+            <label class="label"><span class="label-text">{{ t('settings.goals.weekly') }}</span></label>
             <input
               type="number"
               class="input input-bordered input-sm"
@@ -301,7 +299,7 @@ async function sendTestNotification(): Promise<void> {
           </div>
         </div>
         <div class="form-control">
-          <label class="label"><span class="label-text">Streak threshold (minutes/day)</span></label>
+          <label class="label"><span class="label-text">{{ t('settings.goals.streak') }}</span></label>
           <input
             type="number"
             class="input input-bordered input-sm w-40"
@@ -312,9 +310,9 @@ async function sendTestNotification(): Promise<void> {
       </section>
 
       <section v-else-if="tab === 'shortcuts'" class="space-y-4">
-        <h2 class="text-base font-semibold">Shortcuts</h2>
+        <h2 class="text-base font-semibold">{{ t('settings.tabs.shortcuts') }}</h2>
         <div class="form-control">
-          <label class="label"><span class="label-text">Start/stop last timer (global)</span></label>
+          <label class="label"><span class="label-text">{{ t('settings.shortcuts.toggleTimer') }}</span></label>
           <input
             type="text"
             class="input input-bordered input-sm w-64"
@@ -322,37 +320,37 @@ async function sendTestNotification(): Promise<void> {
             @change="set({ globalShortcutToggleTimer: ($event.target as HTMLInputElement).value })"
           />
           <p class="mt-1 text-xs text-base-content/50">
-            Example: CommandOrControl+Shift+Space. If it doesn't apply, another app may already use it.
+            {{ t('settings.shortcuts.hint') }}
           </p>
         </div>
         <ul class="space-y-1 text-sm text-base-content/70">
-          <li><kbd class="kbd kbd-sm">⌘/Ctrl</kbd> + <kbd class="kbd kbd-sm">K</kbd> — Command Palette</li>
-          <li><kbd class="kbd kbd-sm">⌘/Ctrl</kbd> + <kbd class="kbd kbd-sm">P</kbd> — Quick switcher</li>
-          <li><kbd class="kbd kbd-sm">Esc</kbd> — Close overlay</li>
+          <li><kbd class="kbd kbd-sm">⌘/Ctrl</kbd> + <kbd class="kbd kbd-sm">K</kbd> — {{ t('settings.shortcuts.commandPalette') }}</li>
+          <li><kbd class="kbd kbd-sm">⌘/Ctrl</kbd> + <kbd class="kbd kbd-sm">P</kbd> — {{ t('settings.shortcuts.quickSwitcher') }}</li>
+          <li><kbd class="kbd kbd-sm">Esc</kbd> — {{ t('settings.shortcuts.closeOverlay') }}</li>
         </ul>
       </section>
 
       <section v-else-if="tab === 'backup'" class="space-y-4">
-        <h2 class="text-base font-semibold">Backup & Data</h2>
+        <h2 class="text-base font-semibold">{{ t('settings.tabs.backup') }}</h2>
         <BaseCheckBox
-          label="Automatic backups"
+          :label="t('settings.backup.auto')"
           :checked="settingsStore.settings.autoBackupEnabled"
           @change="set({ autoBackupEnabled: ($event.target as HTMLInputElement).checked })"
         />
         <div class="grid grid-cols-2 gap-4">
           <div class="form-control">
-            <label class="label"><span class="label-text">Frequency</span></label>
+            <label class="label"><span class="label-text">{{ t('settings.backup.frequency') }}</span></label>
             <select
               class="select select-bordered select-sm"
               :value="settingsStore.settings.autoBackupFrequency"
               @change="set({ autoBackupFrequency: ($event.target as HTMLSelectElement).value as 'daily' | 'weekly' })"
             >
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
+              <option value="daily">{{ t('settings.backup.daily') }}</option>
+              <option value="weekly">{{ t('settings.backup.weekly') }}</option>
             </select>
           </div>
           <div class="form-control">
-            <label class="label"><span class="label-text">Keep</span></label>
+            <label class="label"><span class="label-text">{{ t('settings.backup.keep') }}</span></label>
             <input
               type="number"
               class="input input-bordered input-sm"
@@ -363,11 +361,11 @@ async function sendTestNotification(): Promise<void> {
         </div>
 
         <div class="flex flex-wrap gap-2">
-          <button class="btn btn-sm" @click="createBackup">Create backup now</button>
-          <button class="btn btn-sm" @click="openBackupFolder">Open backup folder</button>
-          <button class="btn btn-sm" @click="pickAndRestore">Restore backup…</button>
-          <button class="btn btn-sm" @click="exportJson">Export JSON</button>
-          <button class="btn btn-sm" @click="exportCsv">Export CSV</button>
+          <button class="btn btn-sm" @click="createBackup">{{ t('settings.backup.createNow') }}</button>
+          <button class="btn btn-sm" @click="openBackupFolder">{{ t('settings.backup.openFolder') }}</button>
+          <button class="btn btn-sm" @click="pickAndRestore">{{ t('settings.backup.restoreFrom') }}</button>
+          <button class="btn btn-sm" @click="exportJson">{{ t('settings.backup.exportJson') }}</button>
+          <button class="btn btn-sm" @click="exportCsv">{{ t('settings.backup.exportCsv') }}</button>
         </div>
 
         <div v-if="backups.length > 0" class="rounded-lg border border-base-300">
@@ -378,37 +376,35 @@ async function sendTestNotification(): Promise<void> {
           >
             <span class="truncate">{{ b.fileName }}</span>
             <div class="flex items-center gap-2 text-xs text-base-content/50">
-              <span>{{ new Date(b.createdAt).toLocaleString() }}</span>
-              <button class="link" @click="restoreBackup(b.filePath)">Restore</button>
+              <span>{{ new Date(b.createdAt).toLocaleString(locale) }}</span>
+              <button class="link" @click="restoreBackup(b.filePath)">{{ t('settings.backup.restore') }}</button>
             </div>
           </div>
         </div>
 
         <div class="divider" />
         <div class="rounded-lg border border-error/40 bg-error/5 p-4 space-y-2">
-          <h3 class="text-sm font-semibold text-error">Danger zone</h3>
+          <h3 class="text-sm font-semibold text-error">{{ t('settings.backup.dangerZone') }}</h3>
           <p class="text-xs text-base-content/60">
-            Permanently deletes every project, task, time entry and tag to start from a clean
-            slate. A safety backup is taken first and the app restarts. Your settings are kept.
+            {{ t('settings.backup.resetBody') }}
           </p>
           <button class="btn btn-error btn-sm btn-outline" @click="resetAllData">
-            Reset all data
+            {{ t('settings.backup.reset') }}
           </button>
         </div>
       </section>
 
       <section v-else-if="tab === 'advanced'" class="space-y-4">
-        <h2 class="text-base font-semibold">Advanced</h2>
-        <button class="btn btn-sm" @click="openLogsFolder">Open logs folder</button>
+        <h2 class="text-base font-semibold">{{ t('settings.tabs.advanced') }}</h2>
+        <button class="btn btn-sm" @click="openLogsFolder">{{ t('settings.advanced.openLogs') }}</button>
       </section>
 
       <section v-else-if="tab === 'about'" class="space-y-2">
-        <h2 class="text-base font-semibold">About</h2>
-        <p class="text-sm text-base-content/70">TimeTracker v{{ appVersion }}</p>
-        <p class="text-sm text-base-content/70">Platform: {{ platform }}</p>
+        <h2 class="text-base font-semibold">{{ t('settings.tabs.about') }}</h2>
+        <p class="text-sm text-base-content/70">{{ t('settings.about.version', { version: appVersion }) }}</p>
+        <p class="text-sm text-base-content/70">{{ t('settings.about.platform', { platform }) }}</p>
         <p class="text-xs text-base-content/40">
-          A local-first, offline time tracking desktop app. No account, no
-          cloud.
+          {{ t('settings.about.tagline') }}
         </p>
       </section>
     </div>

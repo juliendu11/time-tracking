@@ -53,8 +53,12 @@ Drizzle ORM.
 ### ⏱️ Timer & time tracking
 - One-click start/stop/pause/resume, always derived from timestamps —
   never a counter that can drift or lose time across a restart or sleep.
-- Switching project/task mid-day atomically stops the running timer and
-  starts the new one — never two overlapping timers by accident.
+- Start several independent timers at once, on different projects or tasks,
+  or directly on a project without selecting a task.
+- Pause, resume, and stop each active timer independently from the sidebar,
+  tray, or mini-timer window.
+- A dedicated **Timers** workspace lists every active timer and can launch
+  another one for any project, with an optional task and description.
 - **Idle & sleep detection**: if you step away or your machine sleeps
   while a timer runs, TimeTracker never silently keeps (or silently
   discards) that time — it asks you to **Remove**, **Keep**, or **Split**
@@ -70,6 +74,13 @@ Drizzle ORM.
   budget** — with live progress tracking against both.
 - Tasks with priority, status, favorites, and time estimates, filterable
   and sortable per project.
+- **Subtasks** nested to any depth, shown as a collapsible tree with
+  subtask progress. A parent can't be marked done while it still has open
+  subtasks, a done parent reopens when a new open subtask appears under
+  it, and deleting a parent promotes its subtasks to top level.
+- **Task folders** to organise a project's tasks into collapsible groups.
+  A task can live in several folders at once; deleting a folder never
+  deletes its tasks.
 - Tags for cutting across projects however you actually think about your
   work.
 
@@ -87,7 +98,16 @@ Drizzle ORM.
 - A weekly, spreadsheet-style **Timesheet** with inline duration editing
   (`2h30`, `1:30`, `90m` all parse the same way) and one-click "duplicate
   last week."
-- A day-by-day **Timeline** agenda view.
+- A **Timeline** with a Day/Week toggle: a day-by-day agenda, or a
+  school-timetable weekly grid (one column per day with daily totals,
+  project-coloured blocks, overlapping entries side by side, and a
+  current-time line on today). Entries crossing midnight are split
+  correctly in both views.
+- A month **Calendar** view: each day shows its total, project-coloured
+  entry chips and a busy-day tint; click a day to list its entries and
+  edit them.
+- Every page refreshes immediately when you add an entry or stop a timer —
+  no need to navigate away and back.
 - A flexible **Reports** page: group by project, task, day, week, month,
   or tag, over any preset or custom date range, with optional
   side-by-side comparison against the previous period.
@@ -102,11 +122,11 @@ Drizzle ORM.
 ### 🔔 Notifications & idle detection
 - Desktop notifications for idle prompts and other timer events, with a
   one-click test notification in Settings.
-- Configurable idle threshold and behavior when switching tasks while a
-  timer is already running.
+- Configurable idle threshold; idle decisions apply consistently to every
+  timer that was running during the absence.
 
 ### 🖥️ Desktop integration
-- A system **tray** icon showing the live timer and quick access to
+- A system **tray** icon showing the live timers and quick access to
   recent tasks — start/stop/pause without opening the window.
 - A **global keyboard shortcut** (configurable) to start/stop the
   last-used timer from anywhere, even while the app isn't focused.
@@ -171,7 +191,9 @@ pnpm seed
   applied once each and tracked in a `_migrations` table
   (`src/main/db/migrator.ts`). Never edit a shipped migration — add a new one.
 - Pragmas: WAL journal mode, foreign keys enforced, `synchronous = NORMAL`.
-- Indexes: on `tasks.project_id`, `time_entries.project_id`,
+- Indexes: on `tasks.project_id`, `tasks.parent_task_id`,
+  `task_folders.project_id`, `task_folder_assignments.folder_id`,
+  `time_entries.project_id`,
   `time_entries.task_id`, `time_entries.started_at`, `time_entries.ended_at`,
   and `time_entry_tags.tag_id` — the columns every dashboard/report query
   filters or sorts by.
@@ -193,8 +215,10 @@ Electron Preload  (src/preload/index.ts — exposes window.desktop.*)
              ▼
 Vue Renderer
     ├── features/*    (dashboard, projects, tasks, timer, timeline,
-    │                   timesheet, reports, settings, command-palette)
-    ├── stores/*      (Pinia: timer, projects, tasks, tags, settings, ui)
+    │                   calendar, timesheet, reports, settings,
+    │                   command-palette, search)
+    ├── stores/*      (Pinia: timer, projects, tasks, taskFolders, tags,
+    │                   settings, ui)
     └── layouts/AppLayout.vue
 ```
 
@@ -206,14 +230,14 @@ script exposes only a narrow, fully-typed `window.desktop` API
 ### The timer
 
 `TimerService` (`src/main/services/timer.service.ts`) is the single source
-of truth for the one active timer in the whole app. It's backed by a
-single-row `active_timer` table, not renderer state:
+of truth for all active timers in the app. They are backed by the
+`active_timer` table, not renderer state:
 
 - Elapsed time is always **derived from timestamps** (`startedAt`,
   `accumulatedPauseSeconds`, `pausedAt`) — never from an incrementing
   counter — so it survives page navigation, app restarts, and sleep.
-- `start()` atomically stops any running timer (inside one SQLite
-  transaction) before starting the new one.
+- `start()` inserts an independent timer without changing timers that are
+  already active; pause, resume, and stop operations target a timer ID.
 - Idle time and sleep gaps never silently disappear: `IdleService` detects
   them and the renderer prompts **Remove idle time / Keep idle time / Split
   session** before anything is changed.
@@ -254,11 +278,12 @@ pnpm test:watch  # vitest, watch mode
 ```
 
 Tests are concentrated on the logic where a bug would silently corrupt
-tracked time: `TimerService` (start/stop/switch/pause/resume/restore/idle
+tracked time: `TimerService` (start/stop/pause/resume/restore/idle
 resolution), day-boundary and DST-safe time splitting
-(`src/shared/utils/time.ts`), duration parsing/formatting, and report
-aggregation (dashboard totals, heatmap splitting, grouping, weekly
-timesheet).
+(`src/shared/utils/time.ts`), duration parsing/formatting, calendar and
+weekly-schedule layout (`calendar.ts`, `schedule.ts`), task hierarchy and
+folder rules, and report aggregation (dashboard totals, heatmap splitting,
+grouping, weekly timesheet).
 
 ## Project structure
 
@@ -281,7 +306,8 @@ src/
       router/
   shared/
     types/          domain.ts (entities), ipc.ts (IPC contract)
-    utils/           time.ts, duration.ts — pure, tested functions
+    utils/           time.ts, duration.ts, calendar.ts, schedule.ts — pure,
+                     tested functions
     validation/      zod schemas for every IPC input
 tests/
   unit/             vitest specs
@@ -317,10 +343,11 @@ overwriting) are all available from the same screen.
 ## What's implemented vs. roadmap
 
 Implemented and real (not mocked): project/task CRUD with archiving and
-favorites, the full timer lifecycle including idle/sleep handling, manual
-time entries with overlap detection, dashboard (today/week, 7-day chart,
-12-month heatmap, project distribution, top tasks, streaks, focus score),
-Timeline, weekly Timesheet with flexible duration parsing, Reports with
+favorites, subtasks and task folders, the full timer lifecycle including
+idle/sleep handling, manual time entries with overlap detection, dashboard
+(today/week, 7-day chart, 12-month heatmap, project distribution, top
+tasks, streaks, focus score), Timeline (day and week views), month
+Calendar, weekly Timesheet with flexible duration parsing, Reports with
 grouping and period comparison, Command Palette with smart suggestions,
 global shortcut, system tray, mini timer window, idle detection, desktop
 notifications, JSON/CSV export, and automatic/manual backup with restore.
@@ -332,7 +359,7 @@ integration, but the countdown UI itself isn't built).
 
 Design docs for a longer list of possible future features — invoicing &
 billable time, scoped CSV/PDF/iCal exports, project budget alerts, a real
-Pomodoro engine, recurring tasks, a calendar view, expanded global
+Pomodoro engine, recurring tasks, expanded global
 shortcuts, a CLI companion, a "Wrapped"-style annual recap, a flex-time
 balance ledger, end-of-day gap review, and splitting a tracked block across
 projects — live under [`docs/features/`](docs/features/), each covering

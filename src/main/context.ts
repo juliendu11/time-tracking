@@ -3,6 +3,7 @@ import { ProjectRepository } from '@main/repositories/project.repository'
 import { SettingsRepository } from '@main/repositories/settings.repository'
 import { TagRepository } from '@main/repositories/tag.repository'
 import { TaskRepository } from '@main/repositories/task.repository'
+import { TaskFolderRepository } from '@main/repositories/taskFolder.repository'
 import { TimeEntryRepository } from '@main/repositories/timeEntry.repository'
 import { BackupService } from '@main/services/backup.service'
 import { IdleService } from '@main/services/idle.service'
@@ -15,6 +16,7 @@ export interface AppContext {
   db: AppDatabase
   projects: ProjectRepository
   tasks: TaskRepository
+  taskFolders: TaskFolderRepository
   timeEntries: TimeEntryRepository
   tags: TagRepository
   settings: SettingsRepository
@@ -30,6 +32,7 @@ export interface AppContext {
 export function buildAppContext(db: AppDatabase, requestRestart: () => void): AppContext {
   const projects = new ProjectRepository(db)
   const tasks = new TaskRepository(db)
+  const taskFolders = new TaskFolderRepository(db)
   const timeEntries = new TimeEntryRepository(db)
   const tags = new TagRepository(db)
   const settings = new SettingsRepository(db)
@@ -38,12 +41,13 @@ export function buildAppContext(db: AppDatabase, requestRestart: () => void): Ap
   const reports = new ReportService(projects, tasks, timeEntries, () => settings.get().weekStartsOn)
   const suggestions = new SuggestionService(projects, tasks, timeEntries)
   const search = new SearchService(projects, tasks, timeEntries, tags)
-  const backup = new BackupService(projects, tasks, timeEntries, tags, settings)
+  const backup = new BackupService(projects, taskFolders, tasks, timeEntries, tags, settings)
 
   return {
     db,
     projects,
     tasks,
+    taskFolders,
     timeEntries,
     tags,
     settings,

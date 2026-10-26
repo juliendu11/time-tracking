@@ -22,7 +22,7 @@ export function toggleMiniTimerWindow(show: boolean, alwaysOnTop: boolean): void
 
   const win = new BrowserWindow({
     width: 260,
-    height: 140,
+    height: 280,
     resizable: false,
     minimizable: false,
     maximizable: false,
